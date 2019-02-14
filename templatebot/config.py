@@ -44,4 +44,17 @@ def create_config():
         'info' if c['api.lsst.codes/profile'] == 'production' else 'debug'
     ).upper()
 
+    # Schema Registry hostname (use same config variable as SQRBOTJR)
+    c['templatebot/registryUrl'] = os.getenv('SQRBOTJR_REGISTRY')
+
+    # Kafka broker host (use same config variable as SQRBOTJR)
+    c['templatebot/brokerUrl'] = os.getenv('SQRBOTJR_BROKER')
+
+    # Version name for Kafka topics, if application is running in a staging
+    # environment. This functions similarly to $SQRBOTJR_STAGING_VERSION but
+    # it's an independent configuration so that templatebot can be developed
+    # independently of sqrbot.
+    c['templatebot/topicsVersion'] = os.getenv('TEMPLATEBOT_TOPICS_VERSION') \
+        or ''
+
     return c
