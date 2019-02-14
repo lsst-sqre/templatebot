@@ -12,6 +12,7 @@ import structlog
 from .config import create_config
 from .routes import init_root_routes, init_routes
 from .middleware import setup_middleware
+from .slacklistener import consume_kafka
 
 
 def create_app():
@@ -33,6 +34,9 @@ def create_app():
     app = web.Application()
     setup_middleware(app)
     app.add_routes(init_routes())
+    app['root'] = root_app  # to make the root app's configs available
+    app.on_startup.append(start_slack_listener)
+    app.on_cleanup.append(stop_slack_listener)
     root_app.add_subapp(prefix, app)
 
     logger = structlog.get_logger(root_app['api.lsst.codes/loggerName'])
@@ -114,3 +118,17 @@ async def init_http_session(app):
 
     # Cleanup phase
     await app['api.lsst.codes/httpSession'].close()
+
+
+async def start_slack_listener(app):
+    """Start the Kafka consumer as a background task (``on_startup`` signal
+    handler).
+    """
+    app['kafka_consumer_task'] = app.loop.create_task(consume_kafka(app))
+
+
+async def stop_slack_listener(app):
+    """Stop the Kafka consumer (``on_cleanup`` signal handler).
+    """
+    app['kafka_consumer_task'].cancel()
+    await app['kafka_consumer_task']
