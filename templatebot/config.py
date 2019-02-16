@@ -50,6 +50,9 @@ def create_config():
     # Kafka broker host (use same config variable as SQRBOTJR)
     c['templatebot/brokerUrl'] = os.getenv('SQRBOTJR_BROKER')
 
+    # Slack token (use same config variable as SQRBOTJR)
+    c['templatebot/slackToken'] = os.getenv('SQRBOTJR_TOKEN')
+
     # Version name for Kafka topics, if application is running in a staging
     # environment. This functions similarly to $SQRBOTJR_STAGING_VERSION but
     # it's an independent configuration so that templatebot can be developed
