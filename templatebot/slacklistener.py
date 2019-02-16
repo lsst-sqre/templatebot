@@ -73,6 +73,22 @@ async def consume_kafka(app):
                 offset=message.offset,
                 contents=event)
 
+            try:
+                await route_event(
+                    event=message_info['message'],
+                    app=app,
+                    schema_id=message_info['id'],
+                    topic=message.topic,
+                    partition=message.partition,
+                    offset=message.offset)
+            except Exception as e:
+                logger.error(
+                    'Failed to handle message',
+                    error=str(e),
+                    topic=message.topic,
+                    partition=message.partition,
+                    offset=message.offset)
+
     except asyncio.CancelledError:
         logger.info('consume_kafka task got cancelled')
     finally:
@@ -100,3 +116,233 @@ def get_topic_names(suffix=''):
         topic_names.append(topic_name)
 
     return topic_names
+
+
+async def route_event(*, event, schema_id, topic, partition, offset, app):
+    """Route an incoming event, from Kafka, to a handler.
+    """
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger = logger.bind(schema_id=schema_id, topic=topic, partition=partition,
+                         offset=offset)
+
+    text = normalize_text(event['event']['text'])
+
+    if 'create project' in text:
+        await handle_project_creation(event=event, app=app, logger=logger)
+    elif 'create file' in text:
+        await handle_file_creation(event=event, app=app, logger=logger)
+    else:
+        logger.debug('ignoring message')
+
+
+def normalize_text(input_text):
+    """Normalize text from Slack to improve matching.
+
+    - Strips extraneous whitespace.
+    - Makes all text lowercase.
+    """
+    return ' '.join(input_text.lower().split())
+
+
+async def handle_project_creation(*, event, app, logger):
+    """Handle an initial event from a user asking to make a new project
+    (typically a GitHub repository).
+
+    Parameters
+    ----------
+    event : `dict`
+        The body of the Slack event.
+    app : `aiohttp.web.Application`
+        The application instance.
+    logger
+        A structlog logger, typically with event information already
+        bound to it.
+    """
+    event_channel = event['event']['channel']
+    calling_user = event['event']['user']
+
+    httpsession = app['root']['api.lsst.codes/httpSession']
+    headers = {
+        'content-type': 'application/json; charset=utf-8',
+        'authorization': f'Bearer {app["root"]["templatebot/slackToken"]}'
+    }
+    body = {
+        'token': app["root"]["templatebot/slackToken"],
+        'channel': event_channel,
+        # Since there are `blocks`, this is a fallback for notifications
+        "text": (
+            f"<@{calling_user}>, what type of project do you "
+            "want to make?"
+        ),
+        'blocks': [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"<@{calling_user}>, what type of project do you "
+                        "want to make?"
+                    )
+                },
+                "accessory": {
+                    "type": "static_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "Select a template",
+                        "emoji": True
+                    },
+                    "options": [
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "stack_package",
+                                "emoji": True
+                            },
+                            "value": "stack_package"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "nbreport",
+                                "emoji": True
+                            },
+                            "value": "nbreport"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "technote_rst",
+                                "emoji": True
+                            },
+                            "value": "technote_rst"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    url = 'https://slack.com/api/chat.postMessage'
+    async with httpsession.post(url, json=body, headers=headers) as response:
+        response_json = await response.json()
+    if not response_json['ok']:
+        logger.error(
+            'Got a Slack error from chat.postMessage',
+            contents=response_json)
+
+
+async def handle_file_creation(*, event, app, logger):
+    """Handle an initial event from a user asking to make a new file or
+    snippet.
+
+    Parameters
+    ----------
+    event : `dict`
+        The body of the Slack event.
+    app : `aiohttp.web.Application`
+        The application instance.
+    logger
+        A structlog logger, typically with event information already
+        bound to it.
+    """
+    event_channel = event['event']['channel']
+    calling_user = event['event']['user']
+
+    httpsession = app['root']['api.lsst.codes/httpSession']
+    headers = {
+        'content-type': 'application/json; charset=utf-8',
+        'authorization': f'Bearer {app["root"]["templatebot/slackToken"]}'
+    }
+    body = {
+        'token': app["root"]["templatebot/slackToken"],
+        'channel': event_channel,
+        # Since there are `blocks`, this is a fallback for notifications
+        "text": (
+            f"<@{calling_user}>, what type of file or snippet do you "
+            "want to make?"
+        ),
+        'blocks': [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"<@{calling_user}>, what type of file or snippet do "
+                        "you want to make?"
+                    )
+                },
+                "accessory": {
+                    "type": "static_select",
+                    "placeholder": {
+                        "type": "plain_text",
+                        "text": "Select a template",
+                        "emoji": True
+                    },
+                    "options": [
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "config_topic",
+                                "emoji": True
+                            },
+                            "value": "config_topic"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "copyright",
+                                "emoji": True
+                            },
+                            "value": "copyright"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "license_gplv3",
+                                "emoji": True
+                            },
+                            "value": "license_gplv3"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "stack_license_preamble_cpp",
+                                "emoji": True
+                            },
+                            "value": "stack_license_preamble_cpp"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "stack_license_preamble_py",
+                                "emoji": True
+                            },
+                            "value": "stack_license_preamble_py"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "stack_license_preamble_txt",
+                                "emoji": True
+                            },
+                            "value": "stack_license_preamble_txt"
+                        },
+                        {
+                            "text": {
+                                "type": "plain_text",
+                                "text": "task_topic",
+                                "emoji": True
+                            },
+                            "value": "task_topic"
+                        },
+                    ]
+                }
+            }
+        ]
+    }
+    url = 'https://slack.com/api/chat.postMessage'
+    async with httpsession.post(url, json=body, headers=headers) as response:
+        response_json = await response.json()
+    if not response_json['ok']:
+        logger.error(
+            'Got a Slack error from chat.postMessage',
+            contents=response_json)
