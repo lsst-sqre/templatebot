@@ -105,7 +105,7 @@ def get_topic_names(suffix=''):
     # Only want to subscribe to app_mention and message.im because these
     # are the events that can trigger templatebot actions. We don't care
     # about general messages (messages.channels, for example).
-    events = set(['app_mention', 'message.im'])
+    events = set(['app_mention', 'message.im', 'interaction'])
 
     topic_names = []
     for event in events:
@@ -125,14 +125,32 @@ async def route_event(*, event, schema_id, topic, partition, offset, app):
     logger = logger.bind(schema_id=schema_id, topic=topic, partition=partition,
                          offset=offset)
 
-    text = normalize_text(event['event']['text'])
+    if 'event' in event:
+        if event['event']['type'] == 'message':
+            if 'subtype' in event['event'] \
+                    and event['event']['subtype'] == 'bot_message':
+                # always ignore bot messages
+                return
 
-    if 'create project' in text:
-        await handle_project_creation(event=event, app=app, logger=logger)
-    elif 'create file' in text:
-        await handle_file_creation(event=event, app=app, logger=logger)
-    else:
-        logger.debug('ignoring message')
+            text = normalize_text(event['event']['text'])
+
+            if 'create project' in text:
+                await handle_project_creation(
+                    event=event, app=app, logger=logger)
+            elif 'create file' in text:
+                await handle_file_creation(event=event, app=app, logger=logger)
+
+    elif 'type' in event and event['type'] == 'block_actions':
+        # Handle a button press.
+        for action in event['actions']:
+            if action['action_id'] == 'templatebot_file_select':
+                logger.info(
+                    'Got a templatebot_file_select',
+                    value=action['selected_option']['value'])
+            elif action['action_id'] == 'templatebot_project_select':
+                logger.info(
+                    'Got a templatebot_project_select',
+                    value=action['selected_option']['value'])
 
 
 def normalize_text(input_text):
@@ -177,6 +195,7 @@ async def handle_project_creation(*, event, app, logger):
         'blocks': [
             {
                 "type": "section",
+                "block_id": "templatebot_project_select",
                 "text": {
                     "type": "mrkdwn",
                     "text": (
@@ -186,6 +205,7 @@ async def handle_project_creation(*, event, app, logger):
                 },
                 "accessory": {
                     "type": "static_select",
+                    "action_id": "templatebot_project_select",
                     "placeholder": {
                         "type": "plain_text",
                         "text": "Select a template",
@@ -263,6 +283,7 @@ async def handle_file_creation(*, event, app, logger):
         'blocks': [
             {
                 "type": "section",
+                "block_id": "templatebot_file_select",
                 "text": {
                     "type": "mrkdwn",
                     "text": (
@@ -272,6 +293,7 @@ async def handle_file_creation(*, event, app, logger):
                 },
                 "accessory": {
                     "type": "static_select",
+                    "action_id": "templatebot_file_select",
                     "placeholder": {
                         "type": "plain_text",
                         "text": "Select a template",
