@@ -3,6 +3,8 @@
 
 __all__ = ('consume_kafka',)
 
+import uuid
+
 import asyncio
 
 from aiokafka import AIOKafkaConsumer
@@ -411,6 +413,65 @@ async def handle_file_select_action(*, event_data, action_data, logger, app):
 
     url = 'https://slack.com/api/chat.update'
     async with httpsession.post(url, json=body, headers=headers) as response:
+        response_json = await response.json()
+        logger.info(
+            'templatebot_file_select reponse',
+            response=response_json)
+    if not response_json['ok']:
+        logger.error(
+            'Got a Slack error from chat.update',
+            contents=response_json)
+
+    dialog_body = {
+        'trigger_id': event_data['trigger_id'],
+        'dialog': {
+            "title": "Create a file",
+            "callback_id": f'templatebot_file_dialog_{str(uuid.uuid4())}',
+            'state': '',
+            'notify_on_cancel': True,
+            'elements': [
+                {
+                    "label": "Email Address",
+                    "name": "email",
+                    "type": "text",
+                    "subtype": "email",
+                    "placeholder": "you@example.com"
+                },
+                {
+                    "label": "Additional information",
+                    "name": "comment",
+                    "type": "textarea",
+                    "hint": "Provide additional information if needed."
+                },
+                {
+                    "label": "Meal preferences",
+                    "type": "select",
+                    "name": "meal_preferences",
+                    "options": [
+                        {
+                            "label": "Hindu (Indian) vegetarian",
+                            "value": "hindu"
+                        },
+                        {
+                            "label": "Strict vegan",
+                            "value": "vegan"
+                        },
+                        {
+                            "label": "Kosher",
+                            "value": "kosher"
+                        },
+                        {
+                            "label": "Just put it in a burrito",
+                            "value": "burrito"
+                        }
+                    ]
+                }
+            ]
+        },
+    }
+    url = 'https://slack.com/api/dialog.open'
+    async with httpsession.post(url, json=dialog_body, headers=headers) \
+            as response:
         response_json = await response.json()
         logger.info(
             'templatebot_file_select reponse',
