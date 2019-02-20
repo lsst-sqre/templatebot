@@ -147,6 +147,11 @@ async def route_event(*, event, schema_id, topic, partition, offset, app):
                 logger.info(
                     'Got a templatebot_file_select',
                     value=action['selected_option']['value'])
+                await handle_file_select_action(
+                    event_data=event,
+                    action_data=action,
+                    logger=logger,
+                    app=app)
             elif action['action_id'] == 'templatebot_project_select':
                 logger.info(
                     'Got a templatebot_project_select',
@@ -367,4 +372,50 @@ async def handle_file_creation(*, event, app, logger):
     if not response_json['ok']:
         logger.error(
             'Got a Slack error from chat.postMessage',
+            contents=response_json)
+
+
+async def handle_file_select_action(*, event_data, action_data, logger, app):
+    """Handle the selection from a ``templatebot_file_select`` action ID.
+    """
+    httpsession = app['root']['api.lsst.codes/httpSession']
+    headers = {
+        'content-type': 'application/json; charset=utf-8',
+        'authorization': f'Bearer {app["root"]["templatebot/slackToken"]}'
+    }
+
+    text_content = (
+        f"<@{event_data['user']['id']}> :raised_hands: "
+        "Nice! I'll help you create boilerplate for a "
+        f"`{action_data['selected_option']['text']['text']}` snippet."
+    )
+    body = {
+        'token': app["root"]["templatebot/slackToken"],
+        'channel': event_data['container']['channel_id'],
+        'text': text_content,
+        "ts": event_data['container']['message_ts'],
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "text": text_content,
+                    "type": "mrkdwn"
+                }
+            }
+        ]
+    }
+
+    logger.info(
+        'templatebot_file_select chat.update',
+        body=body)
+
+    url = 'https://slack.com/api/chat.update'
+    async with httpsession.post(url, json=body, headers=headers) as response:
+        response_json = await response.json()
+        logger.info(
+            'templatebot_file_select reponse',
+            response=response_json)
+    if not response_json['ok']:
+        logger.error(
+            'Got a Slack error from chat.update',
             contents=response_json)
