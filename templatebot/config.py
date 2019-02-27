@@ -60,4 +60,14 @@ def create_config():
     c['templatebot/topicsVersion'] = os.getenv('TEMPLATEBOT_TOPICS_VERSION') \
         or ''
 
+    # Template repository (Git URL)
+    c['templatebot/repoUrl'] = os.getenv(
+        'TEMPLATEBOT_REPO',
+        'https://github.com/lsst/templates')
+
+    # Default Git ref for the template repository ('templatebot/repo')
+    c['templatebot/repoRef'] = os.getenv(
+        'TEMPLATEBOT_REPO_REF',
+        'master')
+
     return c

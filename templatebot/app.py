@@ -3,6 +3,7 @@
 
 __all__ = ('create_app',)
 
+from pathlib import Path
 import logging
 import sys
 
@@ -13,6 +14,7 @@ from .config import create_config
 from .routes import init_root_routes, init_routes
 from .middleware import setup_middleware
 from .slacklistener import consume_kafka
+from .repo import RepoManager
 
 
 def create_app():
@@ -35,6 +37,7 @@ def create_app():
     setup_middleware(app)
     app.add_routes(init_routes())
     app['root'] = root_app  # to make the root app's configs available
+    app.cleanup_ctx.append(init_repo_manager)
     app.on_startup.append(start_slack_listener)
     app.on_cleanup.append(stop_slack_listener)
     root_app.add_subapp(prefix, app)
@@ -132,3 +135,18 @@ async def stop_slack_listener(app):
     """
     app['kafka_consumer_task'].cancel()
     await app['kafka_consumer_task']
+
+
+async def init_repo_manager(app):
+    """Create and cleanup the RepoManager.
+    """
+    manager = RepoManager(
+        url=app['root']['templatebot/repoUrl'],
+        cache_dir=Path('.templatebot_repos'),
+        logger=structlog.get_logger(app['root']['api.lsst.codes/loggerName']))
+    manager.clone(gitref=app['root']['templatebot/repoRef'])
+    app['templatebot/repo'] = manager
+
+    yield
+
+    app['templatebot/repo'].delete_all()
