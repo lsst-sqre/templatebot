@@ -19,6 +19,8 @@ async def handle_file_creation(*, event, app, logger):
         A structlog logger, typically with event information already
         bound to it.
     """
+    menu_options = _generate_menu_options(app, logger)
+
     event_channel = event['event']['channel']
     calling_user = event['event']['user']
 
@@ -54,64 +56,7 @@ async def handle_file_creation(*, event, app, logger):
                         "text": "Select a template",
                         "emoji": True
                     },
-                    "options": [
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "config_topic",
-                                "emoji": True
-                            },
-                            "value": "config_topic"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "copyright",
-                                "emoji": True
-                            },
-                            "value": "copyright"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "license_gplv3",
-                                "emoji": True
-                            },
-                            "value": "license_gplv3"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "stack_license_preamble_cpp",
-                                "emoji": True
-                            },
-                            "value": "stack_license_preamble_cpp"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "stack_license_preamble_py",
-                                "emoji": True
-                            },
-                            "value": "stack_license_preamble_py"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "stack_license_preamble_txt",
-                                "emoji": True
-                            },
-                            "value": "stack_license_preamble_txt"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "task_topic",
-                                "emoji": True
-                            },
-                            "value": "task_topic"
-                        },
-                    ]
+                    "options": menu_options
                 }
             }
         ]
@@ -123,3 +68,24 @@ async def handle_file_creation(*, event, app, logger):
         logger.error(
             'Got a Slack error from chat.postMessage',
             contents=response_json)
+
+
+def _generate_menu_options(app, logger):
+    repo = app['templatebot/repo'].get_repo(
+        gitref=app['root']['templatebot/repoRef']
+    )
+    template_names = [t.name for t in repo.iter_file_templates()]
+    template_names.sort()
+
+    options = []
+    for name in template_names:
+        option = {
+            "text": {
+                "type": "plain_text",
+                "text": name,
+                "emoji": True
+            },
+            "value": name
+        }
+        options.append(option)
+    return options
