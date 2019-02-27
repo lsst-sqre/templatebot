@@ -5,6 +5,7 @@ import shutil
 import uuid
 
 import git
+from templatekit.repo import Repo
 
 
 class RepoManager:
@@ -91,6 +92,22 @@ class RepoManager:
             return self._clones[self._clone_refs[gitref]]
         else:
             return self.clone(gitref=gitref)
+
+    def get_repo(self, gitref):
+        """Open a repo clone with templatekit.
+
+        Parameters
+        ----------
+        gitref : `str`
+            A git ref (branch, tag, or SHA string) of the template repository.
+
+        Returns
+        -------
+        repo : `templatekit.repo.Repo`
+            Template repository.
+        """
+        path = self.get_checkout_path(gitref=gitref)
+        return Repo(path)
 
     def delete_all(self):
         """Delete all cloned repositories from the filesystem.
