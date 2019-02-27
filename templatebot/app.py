@@ -13,7 +13,7 @@ import structlog
 from .config import create_config
 from .routes import init_root_routes, init_routes
 from .middleware import setup_middleware
-from .slacklistener import consume_kafka
+from .slack import consume_kafka
 from .repo import RepoManager
 
 
