@@ -61,13 +61,12 @@ async def consume_kafka(app):
         async for message in consumer:
             try:
                 message_info = await deserializer.deserialize(message.value)
-            except Exception as e:
-                logger.error(
+            except Exception:
+                logger.exception(
                     'Failed to deserialize a message',
                     topic=message.topic,
                     partition=message.partition,
-                    offset=message.offset,
-                    error=str(e))
+                    offset=message.offset)
                 continue
 
             event = message_info['message']
@@ -86,10 +85,9 @@ async def consume_kafka(app):
                     topic=message.topic,
                     partition=message.partition,
                     offset=message.offset)
-            except Exception as e:
-                logger.error(
+            except Exception:
+                logger.exception(
                     'Failed to handle message',
-                    error=str(e),
                     topic=message.topic,
                     partition=message.partition,
                     offset=message.offset)
