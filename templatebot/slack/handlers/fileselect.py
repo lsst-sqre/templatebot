@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import uuid
 
+from .filedialogsubmission import render_template
+
 
 async def handle_file_select_action(*, event_data, action_data, logger, app):
     """Handle the selection from a ``templatebot_file_select`` action ID.
@@ -17,12 +19,27 @@ async def handle_file_select_action(*, event_data, action_data, logger, app):
        containing a selection menu with a confirmation message. This prevents
        someone from interacting with the menu again.
     2. Open a Slack dialog to let the user fill in template variables based
-       on the ``cookiecutter.json`` file.
+       on the ``cookiecutter.json`` file. If the template doens't have any
+       variables, then respond with the rendered template immediately instead
+       of openening the dialog.
     """
     await _confirm_selection(event_data=event_data, action_data=action_data,
                              logger=logger, app=app)
-    await _open_dialog(event_data=event_data, action_data=action_data,
-                       logger=logger, app=app)
+
+    selected_template = action_data['selected_option']['value']
+    repo = app['templatebot/repo'].get_repo(
+        gitref=app['root']['templatebot/repoRef']
+    )
+    template = repo[selected_template]
+    cookiecutter_path = Path(template.cookiecutter_json_path)
+    cookiecutter_options = json.loads(cookiecutter_path.read_text())
+    if len(cookiecutter_options) == 0:
+        await _respond_with_nonconfigurable_content(
+            template=template, event_data=event_data, logger=logger,
+            app=app)
+    else:
+        await _open_dialog(template=template, event_data=event_data,
+                           logger=logger, app=app)
 
 
 async def _confirm_selection(*, event_data, action_data, logger, app):
@@ -71,21 +88,40 @@ async def _confirm_selection(*, event_data, action_data, logger, app):
             contents=response_json)
 
 
-async def _open_dialog(*, event_data, action_data, logger, app):
+async def _respond_with_nonconfigurable_content(*, template, event_data,
+                                                logger, app):
+    """Respond to the user on Slack with the content of a non-configurable
+    template.
+
+    This is an alternative pathway to `_open_dialog`.
+    """
+    channel_id = event_data['channel']['id']
+    user_id = event_data['user']['id']
+    await render_template(
+        template=template,
+        template_variables={},
+        channel_id=channel_id,
+        user_id=user_id,
+        logger=logger,
+        app=app)
+
+
+async def _open_dialog(*, template, event_data, logger, app):
     """Open a Slack dialog containing fields based on the user query.
     """
-    selected_template = action_data['selected_option']['value']
+    cookiecutter_path = Path(template.cookiecutter_json_path)
+    cookiecutter_options = json.loads(cookiecutter_path.read_text())
     elements = _create_dialog_elements(
-        template_name=selected_template,
-        app=app)
+        cookiecutter_options=cookiecutter_options)
+
     # State that's needed by handle_file_dialog_submission
     state = {
-        'template_name': selected_template
+        'template_name': template.name
     }
     dialog_body = {
         'trigger_id': event_data['trigger_id'],
         'dialog': {
-            "title": selected_template,
+            "title": template.name,
             "callback_id": f'templatebot_file_dialog_{str(uuid.uuid4())}',
             'state': json.dumps(state),
             'notify_on_cancel': True,
@@ -111,14 +147,7 @@ async def _open_dialog(*, event_data, action_data, logger, app):
             contents=response_json)
 
 
-def _create_dialog_elements(*, template_name, app):
-    repo = app['templatebot/repo'].get_repo(
-        gitref=app['root']['templatebot/repoRef']
-    )
-    template = repo[template_name]
-    cookiecutter_path = Path(template.cookiecutter_json_path)
-    cookiecutter_options = json.loads(cookiecutter_path.read_text())
-
+def _create_dialog_elements(*, cookiecutter_options):
     elements = []
     for var_name, option in cookiecutter_options.items():
         if var_name.startswith('_'):

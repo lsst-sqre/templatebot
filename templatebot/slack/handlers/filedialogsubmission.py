@@ -1,7 +1,7 @@
 """Slack handler when a user submits a dialog to create a file.
 """
 
-__all__ = ('handle_file_dialog_submission',)
+__all__ = ('handle_file_dialog_submission', 'render_template',)
 
 import json
 
@@ -23,10 +23,22 @@ async def handle_file_dialog_submission(*, event_data, logger, app):
         gitref=app['root']['templatebot/repoRef']
     )
     template = repo[template_name]
+
+    await render_template(
+        template=template,
+        template_variables=submission_data,
+        channel_id=channel_id,
+        user_id=user_id,
+        logger=logger,
+        app=app)
+
+
+async def render_template(*, template, template_variables, channel_id, user_id,
+                          logger, app):
     logger.debug('template.source_path', path=template.source_path)
     rendered_text = render_file_template(template.source_path,
                                          use_defaults=True,
-                                         extra_context=submission_data)
+                                         extra_context=template_variables)
 
     comment_text = f"<@{user_id}>, here's your file!"
 
