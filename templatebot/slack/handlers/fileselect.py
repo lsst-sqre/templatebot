@@ -78,12 +78,16 @@ async def _open_dialog(*, event_data, action_data, logger, app):
     elements = _create_dialog_elements(
         template_name=selected_template,
         app=app)
+    # State that's needed by handle_file_dialog_submission
+    state = {
+        'template_name': selected_template
+    }
     dialog_body = {
         'trigger_id': event_data['trigger_id'],
         'dialog': {
             "title": selected_template,
             "callback_id": f'templatebot_file_dialog_{str(uuid.uuid4())}',
-            'state': '',
+            'state': json.dumps(state),
             'notify_on_cancel': True,
             'elements': elements
         }
