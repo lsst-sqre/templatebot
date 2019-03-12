@@ -2,6 +2,18 @@
 Change log
 ##########
 
+0.0.2 (2019-03-12)
+==================
+
+This release focuses on file template creation  (``@sqrbot-jr create file``):
+
+- A new ``RepoManager`` class manages clones of the template repository (a Git repo).
+  The ``RepoManager`` caches clones by Git SHA and clones are immutable.
+  What this means is that one handler can be rendering a template from the ``master`` branch while a new handler sees that ``master`` is updated and begins a new clone of ``master``.
+
+- The file template handler now populates the Slack dialog with actual fields from the template's ``cookiecutter.json`` file and renders the actual template with templatekit.
+  The filename is also rendered from the cookiecutter context.
+
 0.0.1 (2019-02-21)
 ==================
 
