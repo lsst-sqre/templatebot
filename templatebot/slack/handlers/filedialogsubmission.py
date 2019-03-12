@@ -3,8 +3,10 @@
 
 __all__ = ('handle_file_dialog_submission', 'render_template',)
 
+import os.path
 import json
 
+import jinja2
 from templatekit.filerender import render_file_template
 import yarl
 
@@ -35,10 +37,16 @@ async def handle_file_dialog_submission(*, event_data, logger, app):
 
 async def render_template(*, template, template_variables, channel_id, user_id,
                           logger, app):
+    """Render the file template given the user submission and respond with
+    a Slack file upload.
+    """
     logger.debug('template.source_path', path=template.source_path)
     rendered_text = render_file_template(template.source_path,
                                          use_defaults=True,
                                          extra_context=template_variables)
+    rendered_filename = compute_filename(template=template,
+                                         template_variables=template_variables,
+                                         logger=logger)
 
     comment_text = f"<@{user_id}>, here's your file!"
 
@@ -52,8 +60,8 @@ async def render_template(*, template, template_variables, channel_id, user_id,
         'token': app["root"]["templatebot/slackToken"],
         'channels': channel_id,
         'content': rendered_text,
-        'filename': 'demo.txt',
-        'filetype': 'text',
+        'filename': rendered_filename,
+        'title': rendered_filename,
         'initial_comment': comment_text,
     }
     encoded_body = yarl.URL.build(query=body).query_string.encode('utf-8')
@@ -67,3 +75,25 @@ async def render_template(*, template, template_variables, channel_id, user_id,
         logger.error(
             'Got a Slack error from files.upload',
             contents=response_json)
+
+
+def compute_filename(*, template, template_variables, logger):
+    """Compute the name of a file given the templated named.
+    """
+    context = {
+        'cookiecutter': template_variables
+    }
+
+    if template.source_path.endswith('.jinja'):
+        template_str = os.path.basename(
+            os.path.splitext(template.source_path)[0])
+    else:
+        template_str = os.path.basename(template.source_path)
+    filename_template = jinja2.Template(template_str)
+
+    filename = filename_template.render(context)
+    logger.debug(
+        'Rendered file template filename',
+        filename=filename, context=context,
+        filename_template=template_str)
+    return filename
