@@ -118,10 +118,14 @@ async def _open_dialog(*, template, event_data, logger, app):
     state = {
         'template_name': template.name
     }
+    dialog_title = template.name
+    if len(dialog_title) > 24:
+        # FIXME: max allowed length by Slack
+        dialog_title = dialog_title[:23] + '…'
     dialog_body = {
         'trigger_id': event_data['trigger_id'],
         'dialog': {
-            "title": template.name,
+            "title": dialog_title,
             "callback_id": f'templatebot_file_dialog_{str(uuid.uuid4())}',
             'state': json.dumps(state),
             'notify_on_cancel': True,
