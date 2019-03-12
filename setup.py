@@ -29,6 +29,7 @@ install_requires = [
     'fastavro==0.21.16',
     'kafkit==0.1.1',
     'aiokafka==0.5.0',
+    'templatekit==0.1.1',
 ]
 
 # Test dependencies
