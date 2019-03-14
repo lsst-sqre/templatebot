@@ -68,6 +68,6 @@ def create_config():
     # Default Git ref for the template repository ('templatebot/repo')
     c['templatebot/repoRef'] = os.getenv(
         'TEMPLATEBOT_REPO_REF',
-        'master')
+        'tickets/DM-18406')
 
     return c
