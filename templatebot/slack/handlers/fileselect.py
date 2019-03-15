@@ -172,7 +172,8 @@ def _generate_select_element(*, field):
         'label': field['label'],
         'type': 'select',
         'name': field['key'],
-        'options': option_elements
+        'options': option_elements,
+        'optional': field['optional'],
     }
     return element
 
@@ -184,6 +185,7 @@ def _generate_text_element(*, field):
         'label': field['label'],
         'name': field['key'],
         "type": "text",
+        'optional': field['optional'],
     }
     if 'placeholder' in field:
         element['placeholder'] = field['placeholder']

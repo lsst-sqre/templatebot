@@ -26,6 +26,10 @@ async def handle_file_dialog_submission(*, event_data, logger, app):
     )
     template = repo[template_name]
 
+    # Drop any null fields so that we get the defaults from cookiecutter.
+    submission_data = {k: v for k, v in submission_data.items()
+                       if v is not None}
+
     # Replace any truncated values from select fields with full values
     for field in template.config['dialog_fields']:
         if field['component'] == 'select':
