@@ -187,7 +187,7 @@ def _generate_text_element(*, field):
         "type": "text",
         'optional': field['optional'],
     }
-    if 'placeholder' in field:
+    if 'placeholder' in field and len(field['placeholder']) > 0:
         element['placeholder'] = field['placeholder']
     if 'hint' in field and len(field['hint']) > 0:
         element['hint'] = field['hint']
