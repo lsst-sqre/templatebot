@@ -4,7 +4,6 @@
 __all__ = ('handle_file_select_action',)
 
 import json
-from pathlib import Path
 import uuid
 
 from .filedialogsubmission import render_template
@@ -31,9 +30,7 @@ async def handle_file_select_action(*, event_data, action_data, logger, app):
         gitref=app['root']['templatebot/repoRef']
     )
     template = repo[selected_template]
-    cookiecutter_path = Path(template.cookiecutter_json_path)
-    cookiecutter_options = json.loads(cookiecutter_path.read_text())
-    if len(cookiecutter_options) == 0:
+    if len(template.config['dialog_fields']) == 0:
         await _respond_with_nonconfigurable_content(
             template=template, event_data=event_data, logger=logger,
             app=app)
@@ -109,19 +106,13 @@ async def _respond_with_nonconfigurable_content(*, template, event_data,
 async def _open_dialog(*, template, event_data, logger, app):
     """Open a Slack dialog containing fields based on the user query.
     """
-    cookiecutter_path = Path(template.cookiecutter_json_path)
-    cookiecutter_options = json.loads(cookiecutter_path.read_text())
-    elements = _create_dialog_elements(
-        cookiecutter_options=cookiecutter_options)
+    elements = _create_dialog_elements(template=template)
 
     # State that's needed by handle_file_dialog_submission
     state = {
         'template_name': template.name
     }
-    dialog_title = template.name
-    if len(dialog_title) > 24:
-        # FIXME: max allowed length by Slack
-        dialog_title = dialog_title[:23] + '…'
+    dialog_title = template.config['dialog_title']
     dialog_body = {
         'trigger_id': event_data['trigger_id'],
         'dialog': {
@@ -151,19 +142,17 @@ async def _open_dialog(*, template, event_data, logger, app):
             contents=response_json)
 
 
-def _create_dialog_elements(*, cookiecutter_options):
+def _create_dialog_elements(*, template):
     elements = []
-    for var_name, option in cookiecutter_options.items():
-        if var_name.startswith('_'):
-            # Private variables (like _extensions) shouldn't be exposed in
-            # the dialog.
-            continue
-        elif isinstance(option, list):
-            element = _generate_select_element(var_name=var_name,
-                                               options=option)
+    for field in template.config['dialog_fields']:
+        if field['component'] == 'select':
+            element = _generate_select_element(
+                field=field
+            )
         else:
-            element = _generate_text_element(var_name=var_name,
-                                             default=option)
+            element = _generate_text_element(
+                field=field
+            )
         elements.append(element)
 
     if len(elements) > 5:
@@ -173,43 +162,31 @@ def _create_dialog_elements(*, cookiecutter_options):
     return elements
 
 
-def _generate_select_element(*, var_name, options):
+def _generate_select_element(*, field):
     """Generate the JSON specification of a ``select`` element in a dialog.
     """
-    short_var_name = var_name
-    if len(short_var_name) > 75:
-        # FIXME: max allowable length by Slack
-        short_var_name = short_var_name[:75]
     option_elements = []
-    for v in options:
-        if len(v) > 75:
-            # FIXME: max allowable length by Slack
-            v = v[:75]  # max allowed length by Slack
-        option_elements.append({'label': v, 'value': v})
+    for v in field['options']:
+        option_elements.append({'label': v['label'], 'value': v['value']})
     element = {
-        'label': short_var_name,
+        'label': field['label'],
         'type': 'select',
-        'name': short_var_name,
+        'name': field['key'],
         'options': option_elements
     }
     return element
 
 
-def _generate_text_element(*, var_name, default):
+def _generate_text_element(*, field):
     """Generate the JSON specification of a text element in a dialog.
     """
-    short_var_name = var_name
-    if len(short_var_name) > 75:
-        # FIXME: max allowable length by Slack
-        short_var_name = short_var_name[:75]
-    short_default = default
-    if len(short_default) > 75:
-        # FIXME: max allowable length by Slack
-        short_default = short_default[:75]
     element = {
-        'label': short_var_name,
-        'name': short_var_name,
+        'label': field['label'],
+        'name': field['key'],
         "type": "text",
-        "placeholder": short_default
     }
+    if 'placeholder' in field:
+        element['placeholder'] = field['placeholder']
+    if 'hint' in field and len(field['hint']) > 0:
+        element['hint'] = field['hint']
     return element

@@ -26,6 +26,15 @@ async def handle_file_dialog_submission(*, event_data, logger, app):
     )
     template = repo[template_name]
 
+    # Replace any truncated values from select fields with full values
+    for field in template.config['dialog_fields']:
+        if field['component'] == 'select':
+            selected_value = submission_data[field['key']]
+            for option in field['options']:
+                if option['value'] == selected_value:
+                    submission_data[field['key']] = option['template_value']
+                    continue
+
     await render_template(
         template=template,
         template_variables=submission_data,

@@ -56,7 +56,7 @@ async def handle_file_creation(*, event, app, logger):
                         "text": "Select a template",
                         "emoji": True
                     },
-                    "options": menu_options
+                    "option_groups": menu_options
                 }
             }
         ]
@@ -74,18 +74,43 @@ def _generate_menu_options(app, logger):
     repo = app['templatebot/repo'].get_repo(
         gitref=app['root']['templatebot/repoRef']
     )
-    template_names = [t.name for t in repo.iter_file_templates()]
-    template_names.sort()
+    template_groups = {}
+    for template in repo.iter_file_templates():
+        group = template.config['group']
+        label = template.config['name']
+        name = template.name
+        if group in template_groups:
+            template_groups[group][label] = name
+        else:
+            template_groups[group] = {label: name}
 
-    options = []
-    for name in template_names:
-        option = {
-            "text": {
-                "type": "plain_text",
-                "text": name,
-                "emoji": True
+    group_names = sorted(template_groups.keys())
+    # Always put 'General' at the beginning
+    if 'General' in group_names:
+        group_names.insert(
+            0, group_names.pop(group_names.index('General')))
+    logger.debug('Group names', names=group_names)
+    option_groups = []
+    for group_name in group_names:
+        group = {
+            'label': {
+                'type': "plain_text",
+                'text': group_name
             },
-            "value": name
+            'options': []
         }
-        options.append(option)
-    return options
+        option_labels = sorted(template_groups[group_name])
+        for label in option_labels:
+            name = template_groups[group_name][label]
+            option = {
+                "text": {
+                    "type": "plain_text",
+                    "text": label,
+                    "emoji": True
+                },
+                "value": name
+            }
+            group['options'].append(option)
+        option_groups.append(group)
+    logger.debug('Made option groups', groups=option_groups)
+    return option_groups
