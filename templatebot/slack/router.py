@@ -12,7 +12,8 @@ import structlog
 
 from .handlers import (
     handle_project_creation, handle_file_creation,
-    handle_file_select_action, handle_file_dialog_submission
+    handle_file_select_action, handle_file_dialog_submission,
+    handle_project_select_action
 )
 
 
@@ -159,6 +160,11 @@ async def route_event(*, event, schema_id, topic, partition, offset, app):
                 logger.info(
                     'Got a templatebot_project_select',
                     value=action['selected_option']['value'])
+                await handle_project_select_action(
+                    event_data=event,
+                    action_data=action,
+                    logger=logger,
+                    app=app)
 
     elif 'type' in event and event['type'] == 'dialog_submission':
         if event['callback_id'].startswith('templatebot_file_dialog_'):
