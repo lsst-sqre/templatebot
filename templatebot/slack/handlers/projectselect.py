@@ -1,15 +1,15 @@
-"""Slack handler for when a user selects a file template from a menu.
+"""Slack handler for when a user selects project template from a menu.
 """
 
-__all__ = ('handle_file_select_action',)
+__all__ = ('handle_project_select_action',)
 
 from templatebot.slack.dialog import open_template_dialog
 from templatebot.slack.chatupdate import update_message
-from .filedialogsubmission import render_template
 
 
-async def handle_file_select_action(*, event_data, action_data, logger, app):
-    """Handle the selection from a ``templatebot_file_select`` action ID.
+async def handle_project_select_action(*, event_data, action_data, logger,
+                                       app):
+    """Handle the selection from a ``templatebot_project_select`` action ID.
 
     The key steps are:
 
@@ -17,9 +17,7 @@ async def handle_file_select_action(*, event_data, action_data, logger, app):
        containing a selection menu with a confirmation message. This prevents
        someone from interacting with the menu again.
     2. Open a Slack dialog to let the user fill in template variables based
-       on the ``cookiecutter.json`` file. If the template doens't have any
-       variables, then respond with the rendered template immediately instead
-       of openening the dialog.
+       on the ``cookiecutter.json`` file.
     """
     await _confirm_selection(event_data=event_data, action_data=action_data,
                              logger=logger, app=app)
@@ -29,14 +27,9 @@ async def handle_file_select_action(*, event_data, action_data, logger, app):
         gitref=app['root']['templatebot/repoRef']
     )
     template = repo[selected_template]
-    if len(template.config['dialog_fields']) == 0:
-        await _respond_with_nonconfigurable_content(
-            template=template, event_data=event_data, logger=logger,
-            app=app)
-    else:
-        await open_template_dialog(
-            template=template, callback_id_root='templatebot_file_dialog',
-            event_data=event_data, logger=logger, app=app)
+    await open_template_dialog(template=template, event_data=event_data,
+                               callback_id_root="templatebot_project_dialog",
+                               logger=logger, app=app)
 
 
 async def _confirm_selection(*, event_data, action_data, logger, app):
@@ -45,7 +38,7 @@ async def _confirm_selection(*, event_data, action_data, logger, app):
     text_content = (
         f"<@{event_data['user']['id']}> :raised_hands: "
         "Nice! I'll help you create boilerplate for a "
-        f"`{action_data['selected_option']['text']['text']}` snippet."
+        f"`{action_data['selected_option']['text']['text']}` repo."
     )
     body = {
         'token': app["root"]["templatebot/slackToken"],
@@ -63,21 +56,3 @@ async def _confirm_selection(*, event_data, action_data, logger, app):
         ]
     }
     await update_message(body=body, logger=logger, app=app)
-
-
-async def _respond_with_nonconfigurable_content(*, template, event_data,
-                                                logger, app):
-    """Respond to the user on Slack with the content of a non-configurable
-    template.
-
-    This is an alternative pathway to `_open_dialog`.
-    """
-    channel_id = event_data['channel']['id']
-    user_id = event_data['user']['id']
-    await render_template(
-        template=template,
-        template_variables={},
-        channel_id=channel_id,
-        user_id=user_id,
-        logger=logger,
-        app=app)

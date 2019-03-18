@@ -19,6 +19,8 @@ async def handle_project_creation(*, event, app, logger):
         A structlog logger, typically with event information already
         bound to it.
     """
+    menu_options = _generate_menu_options(app, logger)
+
     event_channel = event['event']['channel']
     calling_user = event['event']['user']
 
@@ -54,32 +56,7 @@ async def handle_project_creation(*, event, app, logger):
                         "text": "Select a template",
                         "emoji": True
                     },
-                    "options": [
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "stack_package",
-                                "emoji": True
-                            },
-                            "value": "stack_package"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "nbreport",
-                                "emoji": True
-                            },
-                            "value": "nbreport"
-                        },
-                        {
-                            "text": {
-                                "type": "plain_text",
-                                "text": "technote_rst",
-                                "emoji": True
-                            },
-                            "value": "technote_rst"
-                        }
-                    ]
+                    "option_groups": menu_options
                 }
             }
         ]
@@ -91,3 +68,49 @@ async def handle_project_creation(*, event, app, logger):
         logger.error(
             'Got a Slack error from chat.postMessage',
             contents=response_json)
+
+
+def _generate_menu_options(app, logger):
+    repo = app['templatebot/repo'].get_repo(
+        gitref=app['root']['templatebot/repoRef']
+    )
+    template_groups = {}
+    for template in repo.iter_project_templates():
+        group = template.config['group']
+        label = template.config['name']
+        name = template.name
+        if group in template_groups:
+            template_groups[group][label] = name
+        else:
+            template_groups[group] = {label: name}
+
+    group_names = sorted(template_groups.keys())
+    # Always put 'General' at the beginning
+    if 'General' in group_names:
+        group_names.insert(
+            0, group_names.pop(group_names.index('General')))
+    logger.debug('Group names', names=group_names)
+    option_groups = []
+    for group_name in group_names:
+        group = {
+            'label': {
+                'type': "plain_text",
+                'text': group_name
+            },
+            'options': []
+        }
+        option_labels = sorted(template_groups[group_name])
+        for label in option_labels:
+            name = template_groups[group_name][label]
+            option = {
+                "text": {
+                    "type": "plain_text",
+                    "text": label,
+                    "emoji": True
+                },
+                "value": name
+            }
+            group['options'].append(option)
+        option_groups.append(group)
+    logger.debug('Made option groups', groups=option_groups)
+    return option_groups

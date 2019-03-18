@@ -2,6 +2,23 @@
 Change log
 ##########
 
+0.0.3 (2019-03-18)
+==================
+
+This release focuses on refining the user experience of creating a file or project from Slack using the ``templatekit.yaml`` configuration files introduced in Templatekit 0.2.0.
+
+- In the initial template selection menus, template names and groupings are derived from ``templatekit.yaml`` configurations.
+  Templates are now better organized and better labeled!
+
+- Fields in the dialog are driven by the ``dialog_fields`` field in ``templatekit.yaml`` configurations (Templatekit will still provide a default set of fields if none are set).
+  These configurations, defined in Templatekit 0.2.0+ allow for exciting UI features like labels, placeholders, and hints.
+  The schema validator in Templatekit ensures that labels aren't too long, and that there aren't too many dialog fields — this makes the dialog implementation in Templatebot much simpler.
+
+  These configurations also introduce the concept of *preset menus*, which combine multiple cookiecutter variable presets into selection menu options.
+  This feature lets us handle complicated templates, which many boolean or constrained option variables, within the five-field limit imposed by Slack dialogs.
+
+- This release also includes a handler for project templates, though only as a proof-of-concept for showing that cookiecutter variables for complex templates like ``stack_package`` can be successfully captured.
+
 0.0.2 (2019-03-12)
 ==================
 
