@@ -1,7 +1,8 @@
-"""Tools for opening Slack dialogs with template variables as fields.
+"""Tools for opening Slack dialogs with template variables as fields and
+working with the resulting data.
 """
 
-__all__ = ('open_template_dialog',)
+__all__ = ('open_template_dialog', 'post_process_dialog_submission')
 
 import json
 import uuid
@@ -114,3 +115,44 @@ def _generate_text_element(*, field):
     if 'hint' in field and len(field['hint']) > 0:
         element['hint'] = field['hint']
     return element
+
+
+def post_process_dialog_submission(*, submission_data, template):
+    """Process the ``submission`` data from a Slack dialog submission.
+
+    Parameters
+    ----------
+    submission_data : `dict`
+        The ``submission_data`` from the Slack dialog's event payload. Keys are
+        the ``name`` attributes of fields. Values are the user contents of the
+        fields, or the ``value`` attributes from select menus.
+    template : `templatekit.repo.BaseTemplate`
+        The corresponding template instance.
+
+    Returns
+    -------
+    data : `dict`
+        A cleaned-up copy of the ``submission_data`` parameter. See Notes
+        for details of the post processing steps.
+
+    Notes
+    -----
+    The following steps occur to process ``submission_data``
+
+    - Drop any null values from select fields so that we get defaults from
+      ``cookiecutter.json``.
+    - Replace any truncated values from select fields with the full values.
+    """
+    # Drop any null fields so that we get the defaults from cookiecutter.
+    data = {k: v for k, v in submission_data.items() if v is not None}
+
+    # Replace any truncated values from select fields with full values
+    for field in template.config['dialog_fields']:
+        if field['component'] == 'select':
+            selected_value = data[field['key']]
+            for option in field['options']:
+                if option['value'] == selected_value:
+                    data[field['key']] = option['template_value']
+                    continue
+
+    return data

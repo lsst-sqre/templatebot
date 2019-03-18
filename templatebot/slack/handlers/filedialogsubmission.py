@@ -10,6 +10,8 @@ import jinja2
 from templatekit.filerender import render_file_template
 import yarl
 
+from templatebot.slack.dialog import post_process_dialog_submission
+
 
 async def handle_file_dialog_submission(*, event_data, logger, app):
     """Handle the dialog_submission interaction from a
@@ -17,7 +19,6 @@ async def handle_file_dialog_submission(*, event_data, logger, app):
     """
     channel_id = event_data['channel']['id']
     user_id = event_data['user']['id']
-    submission_data = event_data['submission']
     state = json.loads(event_data['state'])
 
     template_name = state['template_name']
@@ -26,22 +27,13 @@ async def handle_file_dialog_submission(*, event_data, logger, app):
     )
     template = repo[template_name]
 
-    # Drop any null fields so that we get the defaults from cookiecutter.
-    submission_data = {k: v for k, v in submission_data.items()
-                       if v is not None}
-
-    # Replace any truncated values from select fields with full values
-    for field in template.config['dialog_fields']:
-        if field['component'] == 'select':
-            selected_value = submission_data[field['key']]
-            for option in field['options']:
-                if option['value'] == selected_value:
-                    submission_data[field['key']] = option['template_value']
-                    continue
+    template_variables = post_process_dialog_submission(
+        submission_data=event_data['submission'],
+        template=template)
 
     await render_template(
         template=template,
-        template_variables=submission_data,
+        template_variables=template_variables,
         channel_id=channel_id,
         user_id=user_id,
         logger=logger,
