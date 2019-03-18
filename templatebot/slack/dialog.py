@@ -69,13 +69,17 @@ def _create_dialog_elements(*, template):
     elements = []
     for field in template.config['dialog_fields']:
         if field['component'] == 'select':
-            element = _generate_select_element(
-                field=field
-            )
+            if 'preset_options' in field:
+                # Handle preset menu
+                element = _generate_preset_element(field=field)
+            elif 'preset_groups' in field:
+                # Handle group preset menu
+                element = _generate_preset_groups_element(field=field)
+            else:
+                # Handle regular select menu
+                element = _generate_select_element(field=field)
         else:
-            element = _generate_text_element(
-                field=field
-            )
+            element = _generate_text_element(field=field)
         elements.append(element)
 
     if len(elements) > 5:
@@ -83,6 +87,52 @@ def _create_dialog_elements(*, template):
         elements = elements[:5]
 
     return elements
+
+
+def _generate_preset_groups_element(*, field):
+    """Generate the JSON specification for a ``preset_groups`` flavor of
+    a ``select`` element.
+    """
+    option_groups = []
+    for group in field['preset_groups']:
+        menu_group = {
+            'label': group['group_label'],
+            'options': []
+        }
+        for group_option in group['options']:
+            menu_group['options'].append({
+                'label': group_option['label'],
+                'value': group_option['label']
+            })
+        option_groups.append(menu_group)
+    element = {
+        'label': field['label'],
+        'type': 'select',
+        'name': field['label'],
+        'option_groups': option_groups,
+        'optional': field['optional'],
+    }
+    return element
+
+
+def _generate_preset_element(*, field):
+    """Generate the JSON specification for a ``preset_options`` flavor of
+    a ``select`` element.
+    """
+    option_elements = []
+    for option in field['preset_options']:
+        option_elements.append({
+            'label': option['label'],
+            'value': option['value']
+        })
+    element = {
+        'label': field['label'],
+        'type': 'select',
+        'name': field['label'],
+        'options': option_elements,
+        'optional': field['optional'],
+    }
+    return element
 
 
 def _generate_select_element(*, field):
@@ -146,10 +196,36 @@ def post_process_dialog_submission(*, submission_data, template):
     # Drop any null fields so that we get the defaults from cookiecutter.
     data = {k: v for k, v in submission_data.items() if v is not None}
 
-    # Replace any truncated values from select fields with full values
     for field in template.config['dialog_fields']:
-        if field['component'] == 'select':
-            selected_value = data[field['key']]
+
+        if 'preset_groups' in field:
+            # Handle as a preset_groups select menu
+            selected_label = data[field['label']]
+            for option_group in field['preset_groups']:
+                for option in option_group['options']:
+                    if option['label'] == selected_label:
+                        for k, v in option['presets'].items():
+                            data[k] = v
+            del data[field['label']]
+
+        elif 'preset_options' in field:
+            # Handle as a preset select menu
+            selected_value = data[field['label']]
+            for option in field['preset_options']:
+                if option['value'] == selected_value:
+                    for k, v in option['presets'].items():
+                        data[k] = v
+            del data[field['label']]
+
+        elif field['component'] == 'select':
+            # Handle as a regular select menu
+            try:
+                selected_value = data[field['key']]
+            except KeyError:
+                # If field not in data, then it was not set, so use defaults
+                continue
+
+            # Replace any truncated values from select fields with full values
             for option in field['options']:
                 if option['value'] == selected_value:
                     data[field['key']] = option['template_value']
