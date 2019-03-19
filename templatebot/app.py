@@ -9,12 +9,14 @@ import sys
 
 from aiohttp import web, ClientSession
 import structlog
+from kafkit.registry.aiohttp import RegistryApi
 
 from .config import create_config
 from .routes import init_root_routes, init_routes
 from .middleware import setup_middleware
 from .slack import consume_kafka
 from .repo import RepoManager
+from .events.avro import Serializer
 
 
 def create_app():
@@ -38,6 +40,7 @@ def create_app():
     app.add_routes(init_routes())
     app['root'] = root_app  # to make the root app's configs available
     app.cleanup_ctx.append(init_repo_manager)
+    app.cleanup_ctx.append(init_serializer)
     app.on_startup.append(start_slack_listener)
     app.on_cleanup.append(stop_slack_listener)
     root_app.add_subapp(prefix, app)
@@ -150,3 +153,21 @@ async def init_repo_manager(app):
     yield
 
     app['templatebot/repo'].delete_all()
+
+
+async def init_serializer(app):
+    """Init the Avro serializer for SQuaRE Events.
+    """
+    # Start up phase
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger.info('Setting up Avro serializers')
+
+    registry = RegistryApi(
+        session=app['root']['api.lsst.codes/httpSession'],
+        url=app['root']['templatebot/registryUrl'])
+
+    serializer = await Serializer.setup(registry=registry, app=app)
+    app['templatebot/eventSerializer'] = serializer
+    logger.info('Finished setting up Avro serializer for Slack events')
+
+    yield
