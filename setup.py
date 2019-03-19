@@ -30,6 +30,7 @@ install_requires = [
     'kafkit==0.1.1',
     'aiokafka==0.5.0',
     'templatekit==0.2.0a1',
+    'confluent-kafka==0.11.6',
 ]
 
 # Test dependencies

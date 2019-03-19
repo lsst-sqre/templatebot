@@ -17,6 +17,7 @@ from .middleware import setup_middleware
 from .slack import consume_kafka
 from .repo import RepoManager
 from .events.avro import Serializer
+from .events.topics import configure_topics
 
 
 def create_app():
@@ -41,6 +42,7 @@ def create_app():
     app['root'] = root_app  # to make the root app's configs available
     app.cleanup_ctx.append(init_repo_manager)
     app.cleanup_ctx.append(init_serializer)
+    app.cleanup_ctx.append(init_topics)
     app.on_startup.append(start_slack_listener)
     app.on_cleanup.append(stop_slack_listener)
     root_app.add_subapp(prefix, app)
@@ -169,5 +171,17 @@ async def init_serializer(app):
     serializer = await Serializer.setup(registry=registry, app=app)
     app['templatebot/eventSerializer'] = serializer
     logger.info('Finished setting up Avro serializer for Slack events')
+
+    yield
+
+
+async def init_topics(app):
+    """Initialize Kafka topics for SQuaRE Events.
+    """
+    # Start up phase
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger.info('Setting up templatebot Kafka topics')
+
+    configure_topics(app)
 
     yield
