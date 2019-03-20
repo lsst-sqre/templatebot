@@ -3,12 +3,14 @@
 
 __all__ = ('create_app',)
 
+import asyncio
 from pathlib import Path
 import logging
 import sys
 
 from aiohttp import web, ClientSession
 import structlog
+from aiokafka import AIOKafkaProducer
 from kafkit.registry.aiohttp import RegistryApi
 
 from .config import create_config
@@ -44,6 +46,7 @@ def create_app():
     app.cleanup_ctx.append(init_repo_manager)
     app.cleanup_ctx.append(init_serializer)
     app.cleanup_ctx.append(init_topics)
+    app.cleanup_ctx.append(init_producer)
     app.on_startup.append(start_slack_listener)
     app.on_startup.append(start_events_listener)
     app.on_cleanup.append(stop_slack_listener)
@@ -204,3 +207,35 @@ async def stop_events_listener(app):
     """
     app['templatebot/events_consumer_task'].cancel()
     await app['templatebot/events_consumer_task']
+
+
+async def init_producer(app):
+    """Initialize and cleanup the aiokafka Producer instance
+
+    Notes
+    -----
+    Use this function as a cleanup context, see
+    https://aiohttp.readthedocs.io/en/stable/web_reference.html#aiohttp.web.Application.cleanup_ctx
+
+    To access the producer:
+
+    .. code-block:: python
+
+       producer = app['templatebot/producer']
+    """
+    # Startup phase
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger.info('Starting Kafka producer')
+    loop = asyncio.get_running_loop()
+    producer = AIOKafkaProducer(
+        loop=loop,
+        bootstrap_servers=app['root']['templatebot/brokerUrl'])
+    await producer.start()
+    app['templatebot/producer'] = producer
+    logger.info('Finished starting Kafka producer')
+
+    yield
+
+    # cleanup phase
+    logger.info('Shutting down Kafka producer')
+    await producer.stop()
