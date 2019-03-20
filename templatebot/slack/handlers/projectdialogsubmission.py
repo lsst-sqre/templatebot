@@ -5,6 +5,7 @@ a dialog with template configuration.
 __all__ = ('handle_project_dialog_submission',)
 
 import json
+import datetime
 
 from templatebot.slack.dialog import post_process_dialog_submission
 
@@ -32,3 +33,46 @@ async def handle_project_dialog_submission(*, event_data, logger, app):
         template=template.name,
         user_id=user_id,
         channel_id=channel_id)
+
+    # Send a notification message to the user on Slack
+    httpsession = app['root']['api.lsst.codes/httpSession']
+    headers = {
+        'content-type': 'application/json; charset=utf-8',
+        'authorization': f'Bearer {app["root"]["templatebot/slackToken"]}'
+    }
+    body = {
+        'token': app["root"]["templatebot/slackToken"],
+        'channel': channel_id,
+        # Since there are `blocks`, this is a fallback for notifications
+        "text": (
+            f"<@{user_id}>, got it! I'll start working on your "
+            f"{template.config['name']} repository right away. I'll keep you "
+            "updated!"
+        )
+    }
+    url = 'https://slack.com/api/chat.postMessage'
+    async with httpsession.post(url, json=body, headers=headers) as response:
+        response_json = await response.json()
+
+    # Send a templatebot-prerender event
+    prerender_payload = {
+        'template_name': template.name,
+        'variables': template_variables,
+        'template_repo': app['root']['templatebot/repoUrl'],
+        'template_repo_ref': app['root']['templatebot/repoRef'],
+        'retry_count': 0,
+        'initial_timestamp': datetime.datetime.now(datetime.timezone.utc),
+        'slack_username': user_id,
+        'slack_channel': channel_id,
+        'slack_thread_ts': response_json['message']['ts']
+    }
+    serializer = app['templatebot/eventSerializer']
+    prerender_data = await serializer.serialize(
+        'templatebot.prerender_v1', prerender_payload)
+    producer = app['templatebot/producer']
+    topic_name = app['root']['templatebot/prerenderTopic']
+    await producer.send_and_wait(topic_name, prerender_data)
+    logger.info(
+        'Sent prerender event',
+        prerender_topic=topic_name,
+        payload=prerender_payload)
