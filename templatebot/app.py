@@ -18,6 +18,7 @@ from .slack import consume_kafka
 from .repo import RepoManager
 from .events.avro import Serializer
 from .events.topics import configure_topics
+from .events.router import consume_events
 
 
 def create_app():
@@ -44,7 +45,9 @@ def create_app():
     app.cleanup_ctx.append(init_serializer)
     app.cleanup_ctx.append(init_topics)
     app.on_startup.append(start_slack_listener)
+    app.on_startup.append(start_events_listener)
     app.on_cleanup.append(stop_slack_listener)
+    app.on_cleanup.append(stop_events_listener)
     root_app.add_subapp(prefix, app)
 
     logger = structlog.get_logger(root_app['api.lsst.codes/loggerName'])
@@ -185,3 +188,19 @@ async def init_topics(app):
     configure_topics(app)
 
     yield
+
+
+async def start_events_listener(app):
+    """Start the Kafka consumer for templatebot events as a background task
+    (``on_startup`` signal handler).
+    """
+    app['templatebot/events_consumer_task'] = app.loop.create_task(
+        consume_events(app))
+
+
+async def stop_events_listener(app):
+    """Stop the Kafka consumer for templatebot events (``on_cleanup`` signal
+    handler).
+    """
+    app['templatebot/events_consumer_task'].cancel()
+    await app['templatebot/events_consumer_task']
