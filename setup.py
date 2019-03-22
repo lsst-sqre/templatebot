@@ -32,6 +32,8 @@ install_requires = [
     'templatekit==0.2.0a1',
     'confluent-kafka==0.11.6',
     'GitPython==2.1.11',
+    'cachetools==3.1.0',
+    'gidgethub==3.1.0',
 ]
 
 # Test dependencies

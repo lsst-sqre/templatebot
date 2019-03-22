@@ -12,6 +12,8 @@ from aiohttp import web, ClientSession
 import structlog
 from aiokafka import AIOKafkaProducer
 from kafkit.registry.aiohttp import RegistryApi
+from gidgethub.aiohttp import GitHubAPI
+import cachetools
 
 from .config import create_config
 from .routes import init_root_routes, init_routes
@@ -36,6 +38,7 @@ def create_app():
     root_app.update(config)
     root_app.add_routes(init_root_routes())
     root_app.cleanup_ctx.append(init_http_session)
+    root_app.cleanup_ctx.append(init_gidgethub_session)
 
     # Create sub-app for the app's public APIs at the correct prefix
     prefix = '/' + root_app['api.lsst.codes/name']
@@ -132,6 +135,27 @@ async def init_http_session(app):
 
     # Cleanup phase
     await app['api.lsst.codes/httpSession'].close()
+
+
+async def init_gidgethub_session(app):
+    """Create a Gidgethub client session to access the GitHub api.
+
+    Notes
+    -----
+    Use this function as a cleanup content.
+
+    Access the client as ``app['templatebot/gidgethub']``.
+    """
+    session = app['api.lsst.codes/httpSession']
+    token = app['templatebot/githubToken']
+    username = app['templatebot/githubUsername']
+    cache = cachetools.LRUCache(maxsize=500)
+    gh = GitHubAPI(session, username, oauth_token=token, cache=cache)
+    app['templatebot/gidgethub'] = gh
+
+    yield
+
+    # No cleanup to do
 
 
 async def start_slack_listener(app):
