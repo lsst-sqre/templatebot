@@ -70,4 +70,8 @@ def create_config():
         'TEMPLATEBOT_REPO_REF',
         'tickets/DM-18406')
 
+    # GitHub token for SQuaRE bot
+    c['templatebot/githubToken'] = os.getenv('TEMPLATEBOT_GITHUB_TOKEN')
+    c['templatebot/githubUsername'] = os.getenv('TEMPLATEBOT_GITHUB_USER')
+
     return c
