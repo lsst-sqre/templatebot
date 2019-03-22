@@ -11,6 +11,8 @@ from cookiecutter.main import cookiecutter
 import git
 
 from templatebot.slack.chat import post_message
+from templatebot.slack.users import get_user_info
+from templatebot import github
 
 
 async def handle_project_render(*, event, schema, app, logger):
@@ -40,6 +42,20 @@ async def handle_project_render(*, event, schema, app, logger):
     repo = app['templatebot/repo'].get_repo(template_repo_ref)
     template = repo[template_name]
 
+    # The comitter is the bot
+    github_user = await github.get_authenticated_user(app=app, logger=logger)
+    committer_actor = git.Actor(github_user['name'], github_user['email'])
+
+    # If possible, associate the author with the requestor on Slack
+    if event['slack_username'] is not None:
+        user_info = await get_user_info(
+            user=event['slack_username'], app=app, logger=logger)
+        real_name = user_info['user']['real_name']
+        email = user_info['user']['profile']['email']
+        author_actor = git.Actor(real_name, email)
+    else:
+        author_actor = committer_actor
+
     with TemporaryDirectory() as tmpdir:
         # Render the project with cookiecutter
         cookiecutter(
@@ -63,11 +79,9 @@ async def handle_project_render(*, event, schema, app, logger):
         repo = git.Repo.init(str(repo_dir))
         repo.index.add(repo.untracked_files)
 
-        committer = git.Actor("Jonathan Sick",
-                              "jsick@lsst.org")
         repo.index.commit("Initial commit",
-                          author=committer,
-                          committer=committer)
+                          author=author_actor,
+                          committer=committer_actor)
 
         # Modify the repo URL to include auth info in the netloc
         # <user>:<token>@github.com
