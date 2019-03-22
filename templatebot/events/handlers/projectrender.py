@@ -10,6 +10,8 @@ import urllib.parse
 from cookiecutter.main import cookiecutter
 import git
 
+from templatebot.slack.chat import post_message
+
 
 async def handle_project_render(*, event, schema, app, logger):
     """Handle a ``templatebot-render_ready`` event.
@@ -84,6 +86,33 @@ async def handle_project_render(*, event, schema, app, logger):
         except git.exc.GitCommandError:
             logger.exception('Error pushing to GitHub origin',
                              origin_url=event['github_repo'])
+            if event['slack_username'] is not None:
+                await post_message(
+                    text=f"<@{event['slack_username']}>, oh no! "
+                         ":slightly_frowning_face:, something went wrong when "
+                         "I tried to push the initial Git commit to "
+                         f"{event['github_repo']}.\n\nI can't do anything to "
+                         "fix it. Could you ask someone at SQuaRE to look "
+                         "into it?",
+                    channel=event['slack_channel'],
+                    thread_ts=event['slack_thread_ts'],
+                    logger=logger,
+                    app=app
+                )
+            # TODO: add a few retries here for cases GitHub itself doesn't
+            # see its own repo yet.
+            raise
+
+        await post_message(
+            text=f"<@{event['slack_username']}>, I've pushed the first commit "
+                 f"to {event['github_repo']}. You can start working on it!\n\n"
+                 "If I have any extra work to do I'll send a PR and let you "
+                 "know in this thread.",
+            channel=event['slack_channel'],
+            thread_ts=event['slack_thread_ts'],
+            logger=logger,
+            app=app
+        )
 
         logger.info(
             'Pushed to GitHub origin',
