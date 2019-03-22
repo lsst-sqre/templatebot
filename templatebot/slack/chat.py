@@ -1,4 +1,4 @@
-"""Slack helper for updating existing messages.
+"""Slack helpers for working with the Slack ``chat`` web API methods.
 """
 
 __all__ = ('update_message',)
