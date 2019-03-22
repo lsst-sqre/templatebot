@@ -31,6 +31,7 @@ install_requires = [
     'aiokafka==0.5.0',
     'templatekit==0.2.0a1',
     'confluent-kafka==0.11.6',
+    'GitPython==2.1.11',
 ]
 
 # Test dependencies

@@ -119,4 +119,4 @@ async def route_event(*, event, app, schema_id, schema, topic, partition,
 
     if topic == app['root']['templatebot/renderreadyTopic']:
         await handle_project_render(
-            event=event, schema=schema, app=app)
+            event=event, schema=schema, app=app, logger=logger)
