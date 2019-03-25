@@ -78,6 +78,8 @@ def _create_dialog_elements(*, template):
             else:
                 # Handle regular select menu
                 element = _generate_select_element(field=field)
+        elif field['component'] == 'textarea':
+            element = _generate_textarea_element(field=field)
         else:
             element = _generate_text_element(field=field)
         elements.append(element)
@@ -159,6 +161,22 @@ def _generate_text_element(*, field):
         'name': field['key'],
         "type": "text",
         'optional': field['optional'],
+    }
+    if 'placeholder' in field and len(field['placeholder']) > 0:
+        element['placeholder'] = field['placeholder']
+    if 'hint' in field and len(field['hint']) > 0:
+        element['hint'] = field['hint']
+    return element
+
+
+def _generate_textarea_element(*, field):
+    """Generate the JSON specificaton of a textarea in a dialog.
+    """
+    element = {
+        'label': field['label'],
+        'name': field['key'],
+        'type': 'textarea',
+        'optional': field['optional']
     }
     if 'placeholder' in field and len(field['placeholder']) > 0:
         element['placeholder'] = field['placeholder']
