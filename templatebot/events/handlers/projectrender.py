@@ -3,6 +3,8 @@
 
 __all__ = ('handle_project_render',)
 
+import copy
+import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import urllib.parse
@@ -131,3 +133,21 @@ async def handle_project_render(*, event, schema, app, logger):
         logger.info(
             'Pushed to GitHub origin',
             origin_url=event['github_repo'])
+
+        # Send the postrender event
+        # First, copy and reset the event based on render_ready
+        postrender_payload = copy.deepcopy(event)
+        postrender_payload['retry_count'] = 0
+        now = datetime.datetime.now(datetime.timezone.utc)
+        postrender_payload['initial_timestamp'] = now
+
+        serializer = app['templatebot/eventSerializer']
+        postrender_data = await serializer.serialize(
+            'templatebot.postrender_v1', postrender_payload)
+        producer = app['templatebot/producer']
+        topic_name = app['root']['templatebot/postrenderTopic']
+        await producer.send_and_wait(topic_name, postrender_data)
+        logger.debug(
+            'Sent postrender event',
+            postrender_topic=topic_name,
+            payload=postrender_payload)
