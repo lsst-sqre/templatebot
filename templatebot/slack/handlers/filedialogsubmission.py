@@ -53,7 +53,7 @@ async def render_template(*, template, template_variables, channel_id, user_id,
                                          template_variables=template_variables,
                                          logger=logger)
 
-    comment_text = f"<@{user_id}>, here's your file!"
+    comment_text = f"<@{user_id}>, here's your {template.config['name']}!"
 
     httpsession = app['root']['api.lsst.codes/httpSession']
     headers = {
