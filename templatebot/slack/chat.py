@@ -27,6 +27,12 @@ async def post_message(body=None, text=None, channel=None, thread_ts=None,
         Logger instance.
     app
         Application instance.
+
+    Returns
+    -------
+    data : `dict`
+        Response payload from the ``chat.postMessage`` method. See
+        https://api.slack.com/methods/chat.postMessage
     """
     if body is None:
         if text is None or channel is None:
@@ -63,6 +69,8 @@ async def post_message(body=None, text=None, channel=None, thread_ts=None,
             'Got a Slack error from chat.postMessage',
             contents=response_json)
 
+    return response_json
+
 
 async def update_message(*, body, logger, app):
     """Send a ``chat.update`` request to Slack.
@@ -76,6 +84,12 @@ async def update_message(*, body, logger, app):
         Logger instance.
     app
         Application instance.
+
+    Returns
+    -------
+    data : `dict`
+        Response payload from the ``chat.update`` method. See
+        https://api.slack.com/methods/chat.update
     """
     httpsession = app['root']['api.lsst.codes/httpSession']
     headers = {
@@ -97,3 +111,5 @@ async def update_message(*, body, logger, app):
         logger.error(
             'Got a Slack error from chat.update',
             contents=response_json)
+
+    return response_json
