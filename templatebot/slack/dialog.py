@@ -8,8 +8,8 @@ import json
 import uuid
 
 
-async def open_template_dialog(*, template, event_data, callback_id_root,
-                               logger, app):
+async def open_template_dialog(trigger_message_ts=None, *, template,
+                               event_data, callback_id_root, logger, app):
     """Open a Slack dialog containing fields based on the template.
 
     Parameters
@@ -28,6 +28,11 @@ async def open_template_dialog(*, template, event_data, callback_id_root,
     logger
         A structlog logger, typically with event information already
         bound to it.
+    trigger_message_ts : `str`, optional
+        Slack timestamp of the message that triggered the dialog opening.
+        If set, this timestamp is added to the state under the
+        ```"trigger_message_ts"`` key. The dialog result handler can use
+        this timestamp to replace the original message with a new one.
     """
     elements = _create_dialog_elements(template=template)
 
@@ -35,6 +40,8 @@ async def open_template_dialog(*, template, event_data, callback_id_root,
     state = {
         'template_name': template.name
     }
+    if trigger_message_ts is not None:
+        state['trigger_message_ts'] = trigger_message_ts
     dialog_title = template.config['dialog_title']
     dialog_body = {
         'trigger_id': event_data['trigger_id'],

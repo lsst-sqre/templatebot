@@ -7,6 +7,7 @@ __all__ = ('handle_project_dialog_submission',)
 import json
 import datetime
 
+from templatebot.slack.chat import post_message, update_message
 from templatebot.slack.dialog import post_process_dialog_submission
 
 
@@ -35,11 +36,6 @@ async def handle_project_dialog_submission(*, event_data, logger, app):
         channel_id=channel_id)
 
     # Send a notification message to the user on Slack
-    httpsession = app['root']['api.lsst.codes/httpSession']
-    headers = {
-        'content-type': 'application/json; charset=utf-8',
-        'authorization': f'Bearer {app["root"]["templatebot/slackToken"]}'
-    }
     body = {
         'token': app["root"]["templatebot/slackToken"],
         'channel': channel_id,
@@ -50,9 +46,26 @@ async def handle_project_dialog_submission(*, event_data, logger, app):
             "updated!"
         )
     }
-    url = 'https://slack.com/api/chat.postMessage'
-    async with httpsession.post(url, json=body, headers=headers) as response:
-        response_json = await response.json()
+    if 'trigger_message_ts' in state \
+            and state['trigger_message_ts'] is not None:
+        # Post the status update as a replacement of the original trigger
+        # message (the selection menu).
+        body['ts'] = state['trigger_message_ts']
+        body["blocks"] = [
+            {
+                "type": "section",
+                "text": {
+                    "text": body['text'],
+                    "type": "mrkdwn"
+                }
+            }
+        ]
+        response_json = await update_message(body=body, app=app, logger=logger)
+        slack_thread_ts = response_json['ts']
+    else:
+        # Post a new message
+        response_json = await post_message(body=body, app=app, logger=logger)
+        slack_thread_ts = response_json['message']['ts']
 
     # Send a templatebot-prerender event
     prerender_payload = {
@@ -64,7 +77,7 @@ async def handle_project_dialog_submission(*, event_data, logger, app):
         'initial_timestamp': datetime.datetime.now(datetime.timezone.utc),
         'slack_username': user_id,
         'slack_channel': channel_id,
-        'slack_thread_ts': response_json['message']['ts']
+        'slack_thread_ts': slack_thread_ts
     }
     serializer = app['templatebot/eventSerializer']
     prerender_data = await serializer.serialize(
