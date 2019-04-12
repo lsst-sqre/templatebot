@@ -29,7 +29,7 @@ install_requires = [
     'fastavro==0.21.16',
     'kafkit==0.1.1',
     'aiokafka==0.5.0',
-    'templatekit==0.2.0a1',
+    'templatekit==0.2.0',
     'confluent-kafka==0.11.6',
     'GitPython==2.1.11',
     'cachetools==3.1.0',
