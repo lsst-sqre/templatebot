@@ -2,6 +2,27 @@
 Change log
 ##########
 
+0.0.4 (2019-04-16)
+==================
+
+This release builds out the ability for Templatebot to trigger pre- and post-rendering events to domain-specific helper applications.
+For LSST, this helper microservice is `lsst-templatebot-aide <https://github.com/lsst-sqre/lsst-templatebot-aide>`__.
+The sequence of events is:
+
+1. Templatebot receives the ``sqrbot-interaction`` event from Slack dialog closure for files or projects.
+   For project templates, Templatebot emits a ``templatebot-prerender`` event that gets picked up by the ``lsst-templatebot-aide`` or equivalent external microservice.
+
+2. The helper microservice provisions the repository on GitHub.
+   This allows a helper to do specialized work to select and provision a GitHub repository.
+   For example, to determine the serial number for a template's repository.
+   The helper emits a ``templatebot-render_ready`` event.
+
+3. Templatebot creates the first commit for the new repository based on the Cookiecutter template and then emits a ``templatebot-postrender`` event.
+
+4. The helper application receives the ``templatebot-postrender`` event and does additional configuration, such as activating CI and documentation services.
+
+This release also includes Kubernetes deployment manifests.
+
 0.0.3 (2019-03-18)
 ==================
 
