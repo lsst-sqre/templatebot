@@ -1,0 +1,24 @@
+# Ingress that works with the nginx-ingress to route traffic to the app's
+# path.
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: templatebot
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  labels:
+    app: templatebot
+spec:
+  rules:
+    - host: events.lsst.codes
+      http:
+        paths:
+          - backend:
+              serviceName: templatebot
+              servicePort: 8080
+            path: /templatebot
+  tls:
+    - hosts:
+        - events.lsst.codes
+      secretName: events-lsst-codes-tls

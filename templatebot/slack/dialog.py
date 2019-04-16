@@ -8,8 +8,8 @@ import json
 import uuid
 
 
-async def open_template_dialog(*, template, event_data, callback_id_root,
-                               logger, app):
+async def open_template_dialog(trigger_message_ts=None, *, template,
+                               event_data, callback_id_root, logger, app):
     """Open a Slack dialog containing fields based on the template.
 
     Parameters
@@ -28,6 +28,11 @@ async def open_template_dialog(*, template, event_data, callback_id_root,
     logger
         A structlog logger, typically with event information already
         bound to it.
+    trigger_message_ts : `str`, optional
+        Slack timestamp of the message that triggered the dialog opening.
+        If set, this timestamp is added to the state under the
+        ```"trigger_message_ts"`` key. The dialog result handler can use
+        this timestamp to replace the original message with a new one.
     """
     elements = _create_dialog_elements(template=template)
 
@@ -35,6 +40,8 @@ async def open_template_dialog(*, template, event_data, callback_id_root,
     state = {
         'template_name': template.name
     }
+    if trigger_message_ts is not None:
+        state['trigger_message_ts'] = trigger_message_ts
     dialog_title = template.config['dialog_title']
     dialog_body = {
         'trigger_id': event_data['trigger_id'],
@@ -78,6 +85,8 @@ def _create_dialog_elements(*, template):
             else:
                 # Handle regular select menu
                 element = _generate_select_element(field=field)
+        elif field['component'] == 'textarea':
+            element = _generate_textarea_element(field=field)
         else:
             element = _generate_text_element(field=field)
         elements.append(element)
@@ -159,6 +168,22 @@ def _generate_text_element(*, field):
         'name': field['key'],
         "type": "text",
         'optional': field['optional'],
+    }
+    if 'placeholder' in field and len(field['placeholder']) > 0:
+        element['placeholder'] = field['placeholder']
+    if 'hint' in field and len(field['hint']) > 0:
+        element['hint'] = field['hint']
+    return element
+
+
+def _generate_textarea_element(*, field):
+    """Generate the JSON specificaton of a textarea in a dialog.
+    """
+    element = {
+        'label': field['label'],
+        'name': field['key'],
+        'type': 'textarea',
+        'optional': field['optional']
     }
     if 'placeholder' in field and len(field['placeholder']) > 0:
         element['placeholder'] = field['placeholder']

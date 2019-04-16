@@ -4,7 +4,7 @@ MAINTAINER LSST SQuaRE <sqre-admin@lists.lsst.org>
 LABEL description="Templatebot is an api.lsst.codes microservice for creating new projects and files from templates." \
       name="lsstsqre/templatebot"
 
-ENV APPDIR /app
+ENV APPDIR /home/app
 RUN mkdir $APPDIR
 WORKDIR $APPDIR
 

@@ -3,18 +3,26 @@
 
 __all__ = ('create_app',)
 
+import asyncio
 from pathlib import Path
 import logging
 import sys
 
 from aiohttp import web, ClientSession
 import structlog
+from aiokafka import AIOKafkaProducer
+from kafkit.registry.aiohttp import RegistryApi
+from gidgethub.aiohttp import GitHubAPI
+import cachetools
 
 from .config import create_config
 from .routes import init_root_routes, init_routes
 from .middleware import setup_middleware
 from .slack import consume_kafka
 from .repo import RepoManager
+from .events.avro import Serializer
+from .events.topics import configure_topics
+from .events.router import consume_events
 
 
 def create_app():
@@ -30,6 +38,7 @@ def create_app():
     root_app.update(config)
     root_app.add_routes(init_root_routes())
     root_app.cleanup_ctx.append(init_http_session)
+    root_app.cleanup_ctx.append(init_gidgethub_session)
 
     # Create sub-app for the app's public APIs at the correct prefix
     prefix = '/' + root_app['api.lsst.codes/name']
@@ -38,8 +47,13 @@ def create_app():
     app.add_routes(init_routes())
     app['root'] = root_app  # to make the root app's configs available
     app.cleanup_ctx.append(init_repo_manager)
+    app.cleanup_ctx.append(init_serializer)
+    app.cleanup_ctx.append(init_topics)
+    app.cleanup_ctx.append(init_producer)
     app.on_startup.append(start_slack_listener)
+    app.on_startup.append(start_events_listener)
     app.on_cleanup.append(stop_slack_listener)
+    app.on_cleanup.append(stop_events_listener)
     root_app.add_subapp(prefix, app)
 
     logger = structlog.get_logger(root_app['api.lsst.codes/loggerName'])
@@ -123,6 +137,27 @@ async def init_http_session(app):
     await app['api.lsst.codes/httpSession'].close()
 
 
+async def init_gidgethub_session(app):
+    """Create a Gidgethub client session to access the GitHub api.
+
+    Notes
+    -----
+    Use this function as a cleanup content.
+
+    Access the client as ``app['templatebot/gidgethub']``.
+    """
+    session = app['api.lsst.codes/httpSession']
+    token = app['templatebot/githubToken']
+    username = app['templatebot/githubUsername']
+    cache = cachetools.LRUCache(maxsize=500)
+    gh = GitHubAPI(session, username, oauth_token=token, cache=cache)
+    app['templatebot/gidgethub'] = gh
+
+    yield
+
+    # No cleanup to do
+
+
 async def start_slack_listener(app):
     """Start the Kafka consumer as a background task (``on_startup`` signal
     handler).
@@ -150,3 +185,81 @@ async def init_repo_manager(app):
     yield
 
     app['templatebot/repo'].delete_all()
+
+
+async def init_serializer(app):
+    """Init the Avro serializer for SQuaRE Events.
+    """
+    # Start up phase
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger.info('Setting up Avro serializers')
+
+    registry = RegistryApi(
+        session=app['root']['api.lsst.codes/httpSession'],
+        url=app['root']['templatebot/registryUrl'])
+
+    serializer = await Serializer.setup(registry=registry, app=app)
+    app['templatebot/eventSerializer'] = serializer
+    logger.info('Finished setting up Avro serializer for Slack events')
+
+    yield
+
+
+async def init_topics(app):
+    """Initialize Kafka topics for SQuaRE Events.
+    """
+    # Start up phase
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger.info('Setting up templatebot Kafka topics')
+
+    configure_topics(app)
+
+    yield
+
+
+async def start_events_listener(app):
+    """Start the Kafka consumer for templatebot events as a background task
+    (``on_startup`` signal handler).
+    """
+    app['templatebot/events_consumer_task'] = app.loop.create_task(
+        consume_events(app))
+
+
+async def stop_events_listener(app):
+    """Stop the Kafka consumer for templatebot events (``on_cleanup`` signal
+    handler).
+    """
+    app['templatebot/events_consumer_task'].cancel()
+    await app['templatebot/events_consumer_task']
+
+
+async def init_producer(app):
+    """Initialize and cleanup the aiokafka Producer instance
+
+    Notes
+    -----
+    Use this function as a cleanup context, see
+    https://aiohttp.readthedocs.io/en/stable/web_reference.html#aiohttp.web.Application.cleanup_ctx
+
+    To access the producer:
+
+    .. code-block:: python
+
+       producer = app['templatebot/producer']
+    """
+    # Startup phase
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger.info('Starting Kafka producer')
+    loop = asyncio.get_running_loop()
+    producer = AIOKafkaProducer(
+        loop=loop,
+        bootstrap_servers=app['root']['templatebot/brokerUrl'])
+    await producer.start()
+    app['templatebot/producer'] = producer
+    logger.info('Finished starting Kafka producer')
+
+    yield
+
+    # cleanup phase
+    logger.info('Shutting down Kafka producer')
+    await producer.stop()

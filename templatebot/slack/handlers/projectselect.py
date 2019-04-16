@@ -4,7 +4,7 @@
 __all__ = ('handle_project_select_action',)
 
 from templatebot.slack.dialog import open_template_dialog
-from templatebot.slack.chatupdate import update_message
+from templatebot.slack.chat import update_message
 
 
 async def handle_project_select_action(*, event_data, action_data, logger,
@@ -27,9 +27,11 @@ async def handle_project_select_action(*, event_data, action_data, logger,
         gitref=app['root']['templatebot/repoRef']
     )
     template = repo[selected_template]
-    await open_template_dialog(template=template, event_data=event_data,
-                               callback_id_root="templatebot_project_dialog",
-                               logger=logger, app=app)
+    await open_template_dialog(
+        template=template, event_data=event_data,
+        trigger_message_ts=event_data['container']['message_ts'],
+        callback_id_root="templatebot_project_dialog",
+        logger=logger, app=app)
 
 
 async def _confirm_selection(*, event_data, action_data, logger, app):

@@ -4,7 +4,7 @@
 __all__ = ('handle_file_select_action',)
 
 from templatebot.slack.dialog import open_template_dialog
-from templatebot.slack.chatupdate import update_message
+from templatebot.slack.chat import update_message
 from .filedialogsubmission import render_template
 
 
@@ -44,8 +44,8 @@ async def _confirm_selection(*, event_data, action_data, logger, app):
     """
     text_content = (
         f"<@{event_data['user']['id']}> :raised_hands: "
-        "Nice! I'll help you create boilerplate for a "
-        f"`{action_data['selected_option']['text']['text']}` snippet."
+        "I'll help you with that "
+        f"{action_data['selected_option']['text']['text']} snippet."
     )
     body = {
         'token': app["root"]["templatebot/slackToken"],
