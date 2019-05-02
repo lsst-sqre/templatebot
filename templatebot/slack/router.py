@@ -135,7 +135,7 @@ async def route_event(*, event, schema_id, topic, partition, offset, app):
                          offset=offset)
 
     if 'event' in event:
-        if event['event']['type'] == 'message':
+        if event['event']['type'] in ('message', 'app_mention'):
             if 'subtype' in event['event'] \
                     and event['event']['subtype'] == 'bot_message':
                 # always ignore bot messages
