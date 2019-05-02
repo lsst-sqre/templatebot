@@ -2,6 +2,15 @@
 Change log
 ##########
 
+0.0.5 (2019-05-02)
+==================
+
+- Templatebot now uses the ``master`` branch of https://github.com/lsst/templates by default.
+
+- Templatebot now responds to ``app_mention`` Slack events.
+  This means that you can be in a public channel and type ``@sqrbot-jr create file``.
+  Templatebot continues to monitor direct messages.
+
 0.0.4 (2019-04-16)
 ==================
 
