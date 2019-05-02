@@ -8,4 +8,4 @@ data:
   API_LSST_CODES_PROFILE: "production"
   TEMPLATEBOT_TOPICS_VERSION: "dev1"
   TEMPLATEBOT_REPO: "https://github.com/lsst/templates"
-  TEMPLATEBOT_REPO_REF: "tickets/DM-18606"
+  TEMPLATEBOT_REPO_REF: "master"

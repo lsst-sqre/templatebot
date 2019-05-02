@@ -60,6 +60,11 @@ async def consume_kafka(app):
             partitions=[str(p) for p in partitions])
 
         async for message in consumer:
+            logger.info(
+                'Got Kafka message from sqrbot',
+                topic=message.topic,
+                partition=message.partition,
+                offset=message.offset)
             try:
                 message_info = await deserializer.deserialize(message.value)
             except Exception:
@@ -130,7 +135,7 @@ async def route_event(*, event, schema_id, topic, partition, offset, app):
                          offset=offset)
 
     if 'event' in event:
-        if event['event']['type'] == 'message':
+        if event['event']['type'] in ('message', 'app_mention'):
             if 'subtype' in event['event'] \
                     and event['event']['subtype'] == 'bot_message':
                 # always ignore bot messages
