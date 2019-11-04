@@ -92,6 +92,7 @@ class RepoManager:
         elif gitref in self._clone_refs:
             # The gitref is a branch or tag name that's been cloned, but
             # needs to be mapped to a SHA.
+            self._refresh_checkout(gitref)
             return self._clones[self._clone_refs[gitref]]
         else:
             # No record of this gitref; need to make a new clone
@@ -121,3 +122,23 @@ class RepoManager:
         # Also reset internal pointer caches
         self._clones = {}
         self._clone_refs = {}
+
+    def _refresh_checkout(self, gitref):
+        """Checks if the Git origin has a new SHA associated with its head,
+        and if so, creates a new clone with that SHA.
+        """
+        existing_sha = self._clone_refs[gitref]
+        existing_repo_path = self._clones[existing_sha]
+        repo = git.Repo(path=str(existing_repo_path))
+        origin = repo.remotes[0]  # the only remote is origin
+        for fetch_info in origin.fetch():
+            if fetch_info.ref.name == f'origin/{gitref}':
+                if fetch_info.commit.hexsha != existing_sha:
+                    self._logger.info(
+                        f'{gitref} updated from {existing_sha} to '
+                        f'{fetch_info.commit.hexsha}; re-cloning'
+                    )
+                    # The origin branch points to a different commit. This
+                    # clones it, which also updates the self._clone_refs
+                    # mapping.
+                    self.clone(gitref=gitref)
