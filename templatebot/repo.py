@@ -72,7 +72,7 @@ class RepoManager:
         return self._clones[head_sha]
 
     def get_checkout_path(self, gitref):
-        """Get the path to a cloned repositoryy for a given Git ref.
+        """Get the path to a cloned repository for a given Git ref.
 
         If a clone is available, the method makes a new clone.
 
@@ -87,10 +87,14 @@ class RepoManager:
             Path of the template repository clone.
         """
         if gitref in self._clones:
+            # The gitref is a SHA that's already been cloned.
             return self._clones[gitref]
         elif gitref in self._clone_refs:
+            # The gitref is a branch or tag name that's been cloned, but
+            # needs to be mapped to a SHA.
             return self._clones[self._clone_refs[gitref]]
         else:
+            # No record of this gitref; need to make a new clone
             return self.clone(gitref=gitref)
 
     def get_repo(self, gitref):
