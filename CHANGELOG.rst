@@ -2,6 +2,13 @@
 Change log
 ##########
 
+0.0.7 (2019-11-04)
+==================
+
+- Templatebot now routinely checks if the template repository clone is up-to-date with the origin remote.
+  These checks are done whenever the template repository is being accessed, for instance in the handlers that list templates, that present template dialogs in Slack, or in rendering a template.
+  A template repository is only re-cloned if the local SHA does not match the SHA of the symbolic Git ref (branch or tag) on the origin.
+
 0.0.6 (2019-10-14)
 ==================
 
