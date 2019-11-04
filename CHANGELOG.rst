@@ -2,6 +2,11 @@
 Change log
 ##########
 
+0.0.8 (2019-11-04)
+==================
+
+- Templatebot now responds to the user typing "help."
+
 0.0.7 (2019-11-04)
 ==================
 
