@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: templatebot-app
-        image: lsstsqre/templatebot:0.0.7
+        image: lsstsqre/templatebot:0.0.8
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

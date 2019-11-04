@@ -4,6 +4,7 @@
 __all__ = ('consume_kafka',)
 
 import asyncio
+import re
 
 from aiokafka import AIOKafkaConsumer
 from kafkit.registry.aiohttp import RegistryApi
@@ -13,8 +14,12 @@ import structlog
 from .handlers import (
     handle_project_creation, handle_file_creation,
     handle_file_select_action, handle_file_dialog_submission,
-    handle_project_select_action, handle_project_dialog_submission
+    handle_project_select_action, handle_project_dialog_submission,
+    handle_generic_help
 )
+
+
+MENTION_PATTERN = re.compile(r'<(@[a-zA-Z0-9]+|!subteam\^[a-zA-Z0-9]+)>')
 
 
 async def consume_kafka(app):
@@ -143,7 +148,10 @@ async def route_event(*, event, schema_id, topic, partition, offset, app):
 
             text = normalize_text(event['event']['text'])
 
-            if 'create project' in text:
+            if match_help_request(text):
+                await handle_generic_help(
+                    event=event, app=app, logger=logger)
+            elif 'create project' in text:
                 await handle_project_creation(
                     event=event, app=app, logger=logger)
             elif 'create file' in text:
@@ -199,3 +207,17 @@ def normalize_text(input_text):
     - Makes all text lowercase.
     """
     return ' '.join(input_text.lower().split())
+
+
+def match_help_request(original_text):
+    # Strip out mentions
+    text = MENTION_PATTERN.sub('', original_text)
+
+    # renormalize whitepsace
+    text = normalize_text(text)
+
+    # determine if "help" is the only word
+    if text in ('help', 'help!', 'help?'):
+        return True
+    else:
+        return False
