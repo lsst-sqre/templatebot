@@ -12,3 +12,9 @@ data:
   TEMPLATEBOT_TOPICS_VERSION: "dev1"
   TEMPLATEBOT_REPO: "https://github.com/lsst/templates"
   TEMPLATEBOT_REPO_REF: "master"
+  TEMPLATEBOT_TOPIC_PRERENDER: 'templatebot.prerender'
+  TEMPLATEBOT_TOPIC_RENDERREADY: 'templatebot.render-ready'
+  TEMPLATEBOT_TOPIC_POSTRENDER: 'templatebot.postrender'
+  SQRBOTJR_TOPIC_APP_MENTION: 'sqrbot.app.mention'
+  SQRBOTJR_TOPIC_MESSAGE_IM: 'sqrbot.message.im'
+  SQRBOTJR_TOPIC_INTERACTION: 'sqrbot.interaction'

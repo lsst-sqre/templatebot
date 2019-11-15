@@ -74,4 +74,18 @@ def create_config():
     c['templatebot/githubToken'] = os.getenv('TEMPLATEBOT_GITHUB_TOKEN')
     c['templatebot/githubUsername'] = os.getenv('TEMPLATEBOT_GITHUB_USER')
 
+    # Topic names
+    c['templatebot/prerenderTopic'] = os.getenv(
+        'TEMPLATEBOT_TOPIC_PRERENDER', 'templatebot.prerender')
+    c['templatebot/renderreadyTopic'] = os.getenv(
+        'TEMPLATEBOT_TOPIC_RENDERREADY', 'templatebot.render-ready')
+    c['templatebot/postrenderTopic'] = os.getenv(
+        'TEMPLATEBOT_TOPIC_POSTRENDER', 'templatebot.postrender')
+    c['templatebot/appMentionTopic'] = os.getenv(
+        'SQRBOTJR_TOPIC_APP_MENTION', 'sqrbot.app.mention')
+    c['templatebot/messageImTopic'] = os.getenv(
+        'SQRBOTJR_TOPIC_MESSAGE_IM', 'sqrbot.message.im')
+    c['templatebot/interactionTopic'] = os.getenv(
+        'SQRBOTJR_TOPIC_INTERACTION', 'sqrbot.interaction')
+
     return c

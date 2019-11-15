@@ -23,9 +23,6 @@ def configure_topics(app):
     exist. The topics correspond one-to-one with schemas in
     ``templatebot/events/schemas/``.
 
-    If the ``templatebot/topicsVersion`` is set, any topics created will have
-    that staging version as a name suffix.
-
     Access topic names from the root application instance with these keys:
 
     - ``templatebot/prerenderTopic``
@@ -45,14 +42,6 @@ def configure_topics(app):
     topic_keys = ('templatebot/prerenderTopic',
                   'templatebot/renderreadyTopic',
                   'templatebot/postrenderTopic')
-    app['root']['templatebot/prerenderTopic'] = 'templatebot-prerender'
-    app['root']['templatebot/renderreadyTopic'] = 'templatebot-render_ready'
-    app['root']['templatebot/postrenderTopic'] = 'templatebot-postrender'
-    # Apply version strings
-    if app['root']['templatebot/topicsVersion']:
-        v = app['root']['templatebot/topicsVersion']
-        for key in topic_keys:
-            app['root'][key] = f'{app["root"][key]}-{v}'
 
     # First list existing topics
     metadata = client.list_topics(timeout=10)
