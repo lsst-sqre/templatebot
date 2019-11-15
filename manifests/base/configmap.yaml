@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: templatebot
+data:
+  # These configurations are injected as environment variables into the
+  # sqrbot-jr app container.
+  API_LSST_CODES_PROFILE: "production"
+  REGISTRY_URL: "http://localhost:8081"
+  KAFKA_BROKER: "localhost:9092"
+  KAFKA_PROTOCOL: "PLAINTEXT"
+  TEMPLATEBOT_TOPICS_VERSION: "dev1"
+  TEMPLATEBOT_REPO: "https://github.com/lsst/templates"
+  TEMPLATEBOT_REPO_REF: "master"

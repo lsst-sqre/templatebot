@@ -45,13 +45,13 @@ def create_config():
     ).upper()
 
     # Schema Registry hostname (use same config variable as SQRBOTJR)
-    c['templatebot/registryUrl'] = os.getenv('SQRBOTJR_REGISTRY')
+    c['templatebot/registryUrl'] = os.getenv('REGISTRY_URL')
 
     # Kafka broker host (use same config variable as SQRBOTJR)
-    c['templatebot/brokerUrl'] = os.getenv('SQRBOTJR_BROKER')
+    c['templatebot/brokerUrl'] = os.getenv('KAFKA_BROKER')
 
     # Slack token (use same config variable as SQRBOTJR)
-    c['templatebot/slackToken'] = os.getenv('SQRBOTJR_TOKEN')
+    c['templatebot/slackToken'] = os.getenv('SLACK_TOKEN')
 
     # Version name for Kafka topics, if application is running in a staging
     # environment. This functions similarly to $SQRBOTJR_STAGING_VERSION but
