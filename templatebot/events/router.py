@@ -42,7 +42,9 @@ async def consume_events(app):
     consumer_settings = {
         'bootstrap_servers': app['root']['templatebot/brokerUrl'],
         'group_id': group_id,
-        'auto_offset_reset': 'latest'
+        'auto_offset_reset': 'latest',
+        'ssl_context': app['root']['templatebot/kafkaSslContext'],
+        'security_protocol': app['root']['templatebot/kafkaProtocol']
     }
     consumer = AIOKafkaConsumer(
         loop=asyncio.get_event_loop(),
