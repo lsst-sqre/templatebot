@@ -88,4 +88,11 @@ def create_config():
     c['templatebot/interactionTopic'] = os.getenv(
         'SQRBOTJR_TOPIC_INTERACTION', 'sqrbot.interaction')
 
+    # Group IDs for the Slack topic consumer and the the templatebot
+    # consumer; defaults to the app's name.
+    c['templatebot/slackGroupId'] = os.getenv(
+        'TEMPLATEBOT_SLACK_GROUP_ID', c['api.lsst.codes/name'])
+    c['templatebot/eventsGroupId'] = os.getenv(
+        'TEMPLATEBOT_EVENTS_GROUP_ID', c['api.lsst.codes/name'])
+
     return c

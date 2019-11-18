@@ -32,14 +32,9 @@ async def consume_kafka(app):
         url=app['root']['templatebot/registryUrl'])
     deserializer = Deserializer(registry=registry)
 
-    if app['root']['templatebot/topicsVersion']:
-        group_id = '_'.join((app["root"]["api.lsst.codes/name"],
-                             app['root']['templatebot/topicsVersion']))
-    else:
-        group_id = app['root']['api.lsst.codes/name']
     consumer_settings = {
         'bootstrap_servers': app['root']['templatebot/brokerUrl'],
-        'group_id': group_id,
+        'group_id': app['root']['templatebot/slackGroupId'],
         'auto_offset_reset': 'latest',
         'ssl_context': app['root']['templatebot/kafkaSslContext'],
         'security_protocol': app['root']['templatebot/kafkaProtocol']

@@ -32,16 +32,9 @@ async def consume_events(app):
         url=app['root']['templatebot/registryUrl'])
     deserializer = Deserializer(registry=registry)
 
-    # The group ID is templatebot_events{_stagingVersion}
-    if app['root']['templatebot/topicsVersion']:
-        group_id = '_'.join((app["root"]["api.lsst.codes/name"],
-                             "events",
-                             app['root']['templatebot/topicsVersion']))
-    else:
-        group_id = f"{app['root']['api.lsst.codes/name']}_events"
     consumer_settings = {
         'bootstrap_servers': app['root']['templatebot/brokerUrl'],
-        'group_id': group_id,
+        'group_id': app['root']['templatebot/eventsGroupId'],
         'auto_offset_reset': 'latest',
         'ssl_context': app['root']['templatebot/kafkaSslContext'],
         'security_protocol': app['root']['templatebot/kafkaProtocol']
