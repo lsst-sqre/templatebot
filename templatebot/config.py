@@ -53,12 +53,17 @@ def create_config():
     # Slack token (use same config variable as SQRBOTJR)
     c['templatebot/slackToken'] = os.getenv('SLACK_TOKEN')
 
-    # Version name for Kafka topics, if application is running in a staging
-    # environment. This functions similarly to $SQRBOTJR_STAGING_VERSION but
-    # it's an independent configuration so that templatebot can be developed
-    # independently of sqrbot.
-    c['templatebot/topicsVersion'] = os.getenv('TEMPLATEBOT_TOPICS_VERSION') \
-        or ''
+    # Suffix to add to Schema Registry suffix names. This is useful when
+    # deploying sqrbot-jr for testing/staging and you do not want to affect
+    # the production subject and its compatibility lineage.
+    c['templatebot/subjectSuffix'] = os.getenv(
+        'TEMPLATEBOT_SUBJECT_SUFFIX', '')
+
+    # Compatibility level to apply to Schema Registry subjects. Use
+    # NONE for testing and development, but prefer FORWARD_TRANSITIVE for
+    # production.
+    c['templatebot/subjectCompatibility'] \
+        = os.getenv('TEMPLATEBOT_SUBJECT_COMPATIBILITY', 'FORWARD_TRANSITIVE')
 
     # Template repository (Git URL)
     c['templatebot/repoUrl'] = os.getenv(
