@@ -100,4 +100,9 @@ def create_config():
     c['templatebot/eventsGroupId'] = os.getenv(
         'TEMPLATEBOT_EVENTS_GROUP_ID', c['api.lsst.codes/name'])
 
+    # Enable topic configuration by the app (disable is its being configured
+    # externally).
+    c['templatebot/enableTopicConfig'] \
+        = bool(int(os.getenv('TEMPLATEBOT_TOPIC_CONFIG', "1")))
+
     return c

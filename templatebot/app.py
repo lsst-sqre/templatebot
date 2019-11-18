@@ -50,7 +50,8 @@ def create_app():
     app['root'] = root_app  # to make the root app's configs available
     app.cleanup_ctx.append(init_repo_manager)
     app.cleanup_ctx.append(init_serializer)
-    app.cleanup_ctx.append(init_topics)
+    if root_app['templatebot/enableTopicConfig']:
+        app.cleanup_ctx.append(init_topics)
     app.cleanup_ctx.append(init_producer)
     app.on_startup.append(start_slack_listener)
     app.on_startup.append(start_events_listener)
