@@ -50,6 +50,9 @@ def create_config():
     # Kafka broker host (use same config variable as SQRBOTJR)
     c['templatebot/brokerUrl'] = os.getenv('KAFKA_BROKER')
 
+    # Kafka security protocol: PLAINTEXT or SSL
+    c['templatebot/kafkaProtocol'] = os.getenv('KAFKA_PROTOCOL')
+
     # Kafka SSL configuration (optional)
     c['templatebot/clusterCaPath'] = os.getenv('KAFKA_CLUSTER_CA')
     c['templatebot/clientCaPath'] = os.getenv('KAFKA_CLIENT_CA')
