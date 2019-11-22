@@ -50,6 +50,7 @@ def create_app():
     app['root'] = root_app  # to make the root app's configs available
     app.cleanup_ctx.append(init_repo_manager)
     app.cleanup_ctx.append(init_serializer)
+    app.cleanup_ctx.append(configure_kafka_ssl)
     if root_app['templatebot/enableTopicConfig']:
         app.cleanup_ctx.append(init_topics)
     app.cleanup_ctx.append(init_producer)
@@ -172,18 +173,18 @@ async def configure_kafka_ssl(app):
 
        app.cleanup_ctx.append(init_http_session)
     """
-    logger = structlog.get_logger(app['api.lsst.codes/loggerName'])
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
 
     ssl_context_key = 'templatebot/kafkaSslContext'
 
-    if app['templatebot/kafkaProtocol'] != 'SSL':
-        app[ssl_context_key] = None
+    if app['root']['templatebot/kafkaProtocol'] != 'SSL':
+        app['root'][ssl_context_key] = None
         return
 
-    cluster_ca_cert_path = app['templatebot/clusterCaPath']
-    client_ca_cert_path = app['templatebot/clientCaPath']
-    client_cert_path = app['templatebot/clientCertPath']
-    client_key_path = app['templatebot/clientKeyPath']
+    cluster_ca_cert_path = app['root']['templatebot/clusterCaPath']
+    client_ca_cert_path = app['root']['templatebot/clientCaPath']
+    client_cert_path = app['root']['templatebot/clientCertPath']
+    client_key_path = app['root']['templatebot/clientKeyPath']
 
     if cluster_ca_cert_path is None:
         raise RuntimeError('Kafka protocol is SSL but cluster CA is not set')
@@ -212,7 +213,7 @@ async def configure_kafka_ssl(app):
     ssl_context.load_cert_chain(
         certfile=client_cert_path,
         keyfile=client_key_path)
-    app[ssl_context_key] = ssl_context
+    app['root'][ssl_context_key] = ssl_context
 
     logger.info('Created Kafka SSL context')
 
