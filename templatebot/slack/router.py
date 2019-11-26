@@ -55,7 +55,10 @@ async def consume_kafka(app):
         logger.info('Subscribing to Kafka topics', names=topic_names)
         consumer.subscribe(topic_names)
 
+        logger.info('Finished subscribing ot Kafka topics', names=topic_names)
+
         partitions = consumer.assignment()
+        logger.info('Waiting on partition assignment', names=topic_names)
         while len(partitions) == 0:
             # Wait for the consumer to get partition assignment
             await asyncio.sleep(1.)
