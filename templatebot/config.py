@@ -113,5 +113,11 @@ def create_config():
     # externally).
     c['templatebot/enableTopicConfig'] \
         = bool(int(os.getenv('TEMPLATEBOT_TOPIC_CONFIG', "1")))
+    # Enable the Kafka consumer listening to sqrbot
+    c['templatebot/enableSlackConsumer'] \
+        = bool(int(os.getenv('TEMPLATEBOT_ENABLE_SLACK_CONSUMER', "1")))
+    # Enable the Kafka consumer listening to events from the aide
+    c['templatebot/enableEventsConsumer'] \
+        = bool(int(os.getenv('TEMPLATEBOT_ENABLE_EVENTS_CONSUMER', "1")))
 
     return c

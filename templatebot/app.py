@@ -54,10 +54,12 @@ def create_app():
     if root_app['templatebot/enableTopicConfig']:
         app.cleanup_ctx.append(init_topics)
     app.cleanup_ctx.append(init_producer)
-    app.on_startup.append(start_slack_listener)
-    app.on_startup.append(start_events_listener)
-    app.on_cleanup.append(stop_slack_listener)
-    app.on_cleanup.append(stop_events_listener)
+    if root_app['templatebot/enableSlackConsumer']:
+        app.on_startup.append(start_slack_listener)
+        app.on_cleanup.append(stop_slack_listener)
+    if root_app['templatebot/enableEventsConsumer']:
+        app.on_startup.append(start_events_listener)
+        app.on_cleanup.append(stop_events_listener)
     root_app.add_subapp(prefix, app)
 
     logger = structlog.get_logger(root_app['api.lsst.codes/loggerName'])
