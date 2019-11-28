@@ -2,7 +2,7 @@
 Change log
 ##########
 
-0.1.0 (2019-11-28)
+0.1.0 (2019-11-29)
 ==================
 
 This release focuses on improving the deployment with Kustomize, better configurability, and support for connecting to Kafka brokers through TLS.
@@ -25,7 +25,7 @@ This release focuses on improving the deployment with Kustomize, better configur
   This granular configuration allows you to consume production topics, but output development topics, for example.
 
 - The old "staging version" configuration is now the ``TEMPLATEBOT_SUBJECT_SUFFIX`` environment variable.
-  This configuration is used solely as a suffix on the fully-qualified name of a schema when determining it's subject name at the Schema Registry.
+  This configuration is used solely as a suffix on the fully-qualified name of a schema when determining its subject name at the Schema Registry.
   Previously it also impacted topic names.
   Use a subject suffix when trying out new Avro schemas to avoid polluting the production subject in the registry.
 
