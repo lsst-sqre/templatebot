@@ -16,17 +16,17 @@ spec:
     spec:
       containers:
       - name: templatebot-app
-        image: lsstsqre/templatebot:0.1.0
+        image: lsstsqre/templatebot:tickets-DM-22100
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: templatebot-app
         env:
-        - name: SQRBOTJR_TOKEN
+        - name: SLACK_TOKEN
           valueFrom:
             secretKeyRef:
-              name: sqrbot-jr
-              key: SQRBOTJR_TOKEN
+              name: templatebot
+              key: SLACK_TOKEN
         - name: TEMPLATEBOT_GITHUB_TOKEN
           valueFrom:
             secretKeyRef:
@@ -38,7 +38,5 @@ spec:
               name: templatebot
               key: TEMPLATEBOT_GITHUB_USER
         envFrom:
-        - configMapRef:
-            name: sqrbot-jr
         - configMapRef:
             name: templatebot

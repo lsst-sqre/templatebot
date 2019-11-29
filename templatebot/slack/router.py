@@ -32,15 +32,12 @@ async def consume_kafka(app):
         url=app['root']['templatebot/registryUrl'])
     deserializer = Deserializer(registry=registry)
 
-    if app['root']['templatebot/topicsVersion']:
-        group_id = '_'.join((app["root"]["api.lsst.codes/name"],
-                             app['root']['templatebot/topicsVersion']))
-    else:
-        group_id = app['root']['api.lsst.codes/name']
     consumer_settings = {
         'bootstrap_servers': app['root']['templatebot/brokerUrl'],
-        'group_id': group_id,
-        'auto_offset_reset': 'latest'
+        'group_id': app['root']['templatebot/slackGroupId'],
+        'auto_offset_reset': 'latest',
+        'ssl_context': app['root']['templatebot/kafkaSslContext'],
+        'security_protocol': app['root']['templatebot/kafkaProtocol']
     }
     consumer = AIOKafkaConsumer(
         loop=asyncio.get_event_loop(),
@@ -50,12 +47,18 @@ async def consume_kafka(app):
         await consumer.start()
         logger.info('Started Kafka consumer', **consumer_settings)
 
-        topic_names = get_topic_names(
-            suffix=app['root']['templatebot/topicsVersion'])
+        topic_names = [
+            app['root']['templatebot/appMentionTopic'],
+            app['root']['templatebot/messageImTopic'],
+            app['root']['templatebot/interactionTopic']
+        ]
         logger.info('Subscribing to Kafka topics', names=topic_names)
         consumer.subscribe(topic_names)
 
+        logger.info('Finished subscribing ot Kafka topics', names=topic_names)
+
         partitions = consumer.assignment()
+        logger.info('Waiting on partition assignment', names=topic_names)
         while len(partitions) == 0:
             # Wait for the consumer to get partition assignment
             await asyncio.sleep(1.)
@@ -108,28 +111,6 @@ async def consume_kafka(app):
     finally:
         logger.info('consume_kafka task cancelling')
         await consumer.stop()
-
-
-def get_topic_names(suffix=''):
-    """Get the list of Kafka topics that should be subscribed to.
-    """
-    # NOTE: a lot of this is very similar to sqrbot.topics.py; this might be
-    # good to put in a common SQuaRE Events package.
-
-    # Only want to subscribe to app_mention and message.im because these
-    # are the events that can trigger templatebot actions. We don't care
-    # about general messages (messages.channels, for example).
-    events = set(['app_mention', 'message.im', 'interaction'])
-
-    topic_names = []
-    for event in events:
-        if suffix:
-            topic_name = f'sqrbot-{event}-{suffix}'
-        else:
-            topic_name = f'sqrbot-{event}'
-        topic_names.append(topic_name)
-
-    return topic_names
 
 
 async def route_event(*, event, schema_id, topic, partition, offset, app):

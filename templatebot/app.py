@@ -7,6 +7,8 @@ import asyncio
 from pathlib import Path
 import logging
 import sys
+import ssl
+import os
 
 from aiohttp import web, ClientSession
 import structlog
@@ -48,12 +50,16 @@ def create_app():
     app['root'] = root_app  # to make the root app's configs available
     app.cleanup_ctx.append(init_repo_manager)
     app.cleanup_ctx.append(init_serializer)
-    app.cleanup_ctx.append(init_topics)
+    app.cleanup_ctx.append(configure_kafka_ssl)
+    if root_app['templatebot/enableTopicConfig']:
+        app.cleanup_ctx.append(init_topics)
     app.cleanup_ctx.append(init_producer)
-    app.on_startup.append(start_slack_listener)
-    app.on_startup.append(start_events_listener)
-    app.on_cleanup.append(stop_slack_listener)
-    app.on_cleanup.append(stop_events_listener)
+    if root_app['templatebot/enableSlackConsumer']:
+        app.on_startup.append(start_slack_listener)
+        app.on_cleanup.append(stop_slack_listener)
+    if root_app['templatebot/enableEventsConsumer']:
+        app.on_startup.append(start_events_listener)
+        app.on_cleanup.append(stop_events_listener)
     root_app.add_subapp(prefix, app)
 
     logger = structlog.get_logger(root_app['api.lsst.codes/loggerName'])
@@ -158,6 +164,64 @@ async def init_gidgethub_session(app):
     # No cleanup to do
 
 
+async def configure_kafka_ssl(app):
+    """Configure an SSL context for the Kafka client (if appropriate).
+
+    Notes
+    -----
+    Use this function as a `cleanup context`_:
+
+    .. code-block:: python
+
+       app.cleanup_ctx.append(init_http_session)
+    """
+    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+
+    ssl_context_key = 'templatebot/kafkaSslContext'
+
+    if app['root']['templatebot/kafkaProtocol'] != 'SSL':
+        app['root'][ssl_context_key] = None
+        return
+
+    cluster_ca_cert_path = app['root']['templatebot/clusterCaPath']
+    client_ca_cert_path = app['root']['templatebot/clientCaPath']
+    client_cert_path = app['root']['templatebot/clientCertPath']
+    client_key_path = app['root']['templatebot/clientKeyPath']
+
+    if cluster_ca_cert_path is None:
+        raise RuntimeError('Kafka protocol is SSL but cluster CA is not set')
+    if client_cert_path is None:
+        raise RuntimeError('Kafka protocol is SSL but client cert is not set')
+    if client_key_path is None:
+        raise RuntimeError('Kafka protocol is SSL but client key is not set')
+
+    if client_ca_cert_path is not None:
+        logger.info('Contatenating Kafka client CA and certificate files.')
+        # Need to contatenate the client cert and CA certificates. This is
+        # typical for Strimzi-based Kafka clusters.
+        client_ca = Path(client_ca_cert_path).read_text()
+        client_cert = Path(client_cert_path).read_text()
+        new_client_cert = '\n'.join([client_cert, client_ca])
+        new_client_cert_path = Path(os.getenv('APPDIR', '.')) / 'client.crt'
+        new_client_cert_path.write_text(new_client_cert)
+        client_cert_path = str(new_client_cert_path)
+
+    # Create a SSL context on the basis that we're the client authenticating
+    # the server (the Kafka broker).
+    ssl_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH,
+        cafile=cluster_ca_cert_path)
+    # Add the certificates that the Kafka broker uses to authenticate us.
+    ssl_context.load_cert_chain(
+        certfile=client_cert_path,
+        keyfile=client_key_path)
+    app['root'][ssl_context_key] = ssl_context
+
+    logger.info('Created Kafka SSL context')
+
+    yield
+
+
 async def start_slack_listener(app):
     """Start the Kafka consumer as a background task (``on_startup`` signal
     handler).
@@ -253,7 +317,9 @@ async def init_producer(app):
     loop = asyncio.get_running_loop()
     producer = AIOKafkaProducer(
         loop=loop,
-        bootstrap_servers=app['root']['templatebot/brokerUrl'])
+        bootstrap_servers=app['root']['templatebot/brokerUrl'],
+        ssl_context=app['root']['templatebot/kafkaSslContext'],
+        security_protocol=app['root']['templatebot/kafkaProtocol'])
     await producer.start()
     app['templatebot/producer'] = producer
     logger.info('Finished starting Kafka producer')

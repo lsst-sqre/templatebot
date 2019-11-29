@@ -28,7 +28,7 @@ install_requires = [
     'click>=6.7,<7.0',
     'fastavro==0.21.16',
     'kafkit==0.1.1',
-    'aiokafka==0.5.0',
+    'aiokafka==0.5.2',
     'templatekit==0.3.0',
     'confluent-kafka==0.11.6',
     'GitPython==2.1.11',

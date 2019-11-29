@@ -25,17 +25,17 @@ class Serializer:
         Client for the Confluent Schema Registry.
     logger
         Logger instance.
-    staging_version `str`, optional
+    suffix : `str`, optional
         If the application is running in a staging environment, this is the
-        name of the staging version. This should be set through the
-        ``templatebot/topicsVersion`` configuration key on the app. Leave as
-        `None` if the application is not in staging.
+        a suffix that can be applied to the Schema subject names. This should
+        be set through the ``templatebot/subjectSuffix`` configuration key on
+        the app. Leave as an empty string if the application is not in staging.
     """
 
-    def __init__(self, *, serializer, logger, staging_version=None):
+    def __init__(self, *, serializer, logger, suffix=''):
         self._serializer = serializer
         self._logger = logger
-        self._staging_version = staging_version
+        self._subject_suffix = suffix
 
     @classmethod
     async def setup(cls, *, registry, app):
@@ -60,7 +60,7 @@ class Serializer:
         for event_type in list_schemas():
             schema = load_schema(
                 event_type,
-                suffix=app['root']['templatebot/topicsVersion'])
+                suffix=app['root']['templatebot/subjectSuffix'])
             await register_schema(registry, schema, app)
 
         serializer = PolySerializer(registry=registry)
@@ -68,7 +68,7 @@ class Serializer:
         return cls(
             serializer=serializer,
             logger=logger,
-            staging_version=app['root']['templatebot/topicsVersion'])
+            suffix=app['root']['templatebot/subjectSuffix'])
 
     async def serialize(self, schema_name, message):
         """Serialize a Slack event.
@@ -85,12 +85,12 @@ class Serializer:
             Kafka broker.
         """
         schema = load_schema(schema_name,
-                             suffix=self._staging_version)
+                             suffix=self._subject_suffix)
         return await self._serializer.serialize(message, schema=schema)
 
 
 @functools.lru_cache()
-def load_schema(name, suffix=None):
+def load_schema(name, suffix=''):
     """Load an Avro schema from the local app data.
 
     This function is memoized so that repeated calls are fast.
@@ -116,7 +116,7 @@ def load_schema(name, suffix=None):
     schema = json.loads(schema_path.read_text())
 
     if suffix:
-        schema['name'] = '_'.join((schema['name'], suffix))
+        schema['name'] = ''.join((schema['name'], suffix))
 
     return fastavro.parse_schema(schema)
 
@@ -158,13 +158,13 @@ async def register_schema(registry, schema, app):
     Notes
     -----
     This function registers a schema, and then ensures that the associated
-    subject in the Schema Registry has the appropriate compatibility level.
-    See `get_desired_compatibility`.
+    subject in the Schema Registry has the appropriate compatibility level
+    (the ``templatebot/subjectCompatibility`` configuration).
     """
     # TODO This function is lifted from sqrbot-jr. Add it to Kafkit?
     logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
 
-    desired_compat = get_desired_compatibility(app)
+    desired_compat = app['root']['templatebot/subjectCompatibility']
 
     schema_id = await registry.register_schema(schema)
     logger.info('Registered schema', subject=schema['name'], id=schema_id)
@@ -201,32 +201,3 @@ async def register_schema(registry, schema, app):
             'Existing subject compatibility level is good',
             subject=schema['name'],
             compatibility_level=subject_config['compatibilityLevel'])
-
-
-def get_desired_compatibility(app):
-    """Get the desired compatibility configuration for subjects given the
-    application configuration.
-
-    Parameters
-    ----------
-    app : `aiohttp.web.Application`
-        The application instance.
-
-    Returns
-    -------
-    compatibility : `str`
-        The Schema Registry compatibility level. The value is one of:
-
-        ``"NONE"``
-            If the ``templatebot/topicsVersion`` app config is set, then no
-            compatiblility is required on the subject since it's a
-            "staging" subject used for testing.
-        ``"FORWARD_TRANSITIVE"``
-            If ``templatebot/topicsVersion`` app config **is not** set, then
-            the subjects must have ``"FORWARD_TRANSITIVE"`` compatibility,
-            following the SQuaRE Events best practices.
-    """
-    if app['root']['templatebot/topicsVersion'] == '':
-        return 'FORWARD_TRANSITIVE'
-    else:
-        return 'NONE'

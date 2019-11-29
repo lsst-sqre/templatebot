@@ -2,6 +2,55 @@
 Change log
 ##########
 
+0.1.0 (2019-11-29)
+==================
+
+This release focuses on improving the deployment with Kustomize, better configurability, and support for connecting to Kafka brokers through TLS.
+
+- Templatebot can now be deployed through Kustomize.
+  The base is located at ``/manifests/base``.
+  This means that you can incorporate this application into a specific Kustomize-based application (such as one deployed by Argo CD) with a URL such as ``github.com/lsst-sqre/templatebot.git//manifests/base?ref=0.1.0``.
+  There is a separate template for the Secret resource expected by the deployment at ``/manifest/base/secret.template.yaml``.
+
+- Topics names can now be configured directly.
+  See the environment variables:
+
+  - ``TEMPLATEBOT_TOPIC_PRERENDER``
+  - ``TEMPLATEBOT_TOPIC_RENDERREADY``
+  - ``TEMPLATEBOT_TOPIC_POSTRENDER``
+  - ``SQRBOTJR_TOPIC_APP_MENTION``
+  - ``SQRBOTJR_TOPIC_MESSAGE_IM``
+  - ``SQRBOTJR_TOPIC_INTERACTION``
+
+  This granular configuration allows you to consume production topics, but output development topics, for example.
+
+- The old "staging version" configuration is now the ``TEMPLATEBOT_SUBJECT_SUFFIX`` environment variable.
+  This configuration is used solely as a suffix on the fully-qualified name of a schema when determining its subject name at the Schema Registry.
+  Previously it also impacted topic names.
+  Use a subject suffix when trying out new Avro schemas to avoid polluting the production subject in the registry.
+
+- Templatebot can now connect to Kafka brokers through SSL.
+  Set the ``KAFKA_PROTOCOL`` environment variable to ``SSL``.
+  Then set these environment variables to the paths of specific TLS certificates and keys:
+
+  - ``KAFKA_CLUSTER_CA`` (the Kafka cluster's CA certificate)
+  - ``KAFKA_CLIENT_CA`` (Templatebot's client CA certificate)
+  - ``KAFKA_CLIENT_CERT`` (Templatebot's client certificate)
+  - ``KAFKA_CLIENT_KEY`` (Templatebot's client key)
+
+- The consumer group IDs of the sqrbot-topic and templatebot-aide topic consumers can now be set independently with these environment variables:
+
+  - ``TEMPLATEBOT_SLACK_GROUP_ID``
+  - ``TEMPLATEBOT_EVENTS_GROUP_ID``
+
+  It's a good idea to set these consumers to have different groups to avoid apparent race conditions when starting up.
+
+- Individual features can be enabled or disabled:
+
+  - ``TEMPLATEBOT_ENABLE_SLACK_CONSUMER``: set to ``"0"`` to disable consuming events from sqrbot.
+  - ``TEMPLATEBOT_ENABLE_EVENTS_CONSUMER``: set to ``"0"`` to disable consuming events from templatebot-aide.
+  - ``TEMPLATEBOT_TOPIC_CONFIG``: set to ``"0"`` to disable configuring topics if they do not already exist.
+
 0.0.8 (2019-11-04)
 ==================
 
