@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "templatebot.render_ready_v1",
+  "name": "codes.lsst.roundtable.templatebot.render_ready_v1",
   "doc": "Message sent to templatebot from helper microservices once a GitHub repository has been provisioned (as an action of a prerender message).",
   "fields": [
     {

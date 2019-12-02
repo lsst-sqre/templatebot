@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "templatebot.postrender_v1",
+  "name": "codes.lsst.roundtable.templatebot.postrender_v1",
   "doc": "Message sent to helper microservices from templatebot once the initial template content is added to a GitHub repository. Microservices can use this to trigger additional configuration and customization of a repository, such as hooking up CI services.",
   "fields": [
     {

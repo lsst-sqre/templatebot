@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "templatebot.prerender_v1",
+  "name": "codes.lsst.roundtable.templatebot.prerender_v1",
   "doc": "Message sent to tempalatebot helpers when a project template has been selected and configured by a user. Helpers can reply with a render_ready message.",
   "fields": [
     {
