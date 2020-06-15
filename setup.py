@@ -31,7 +31,7 @@ install_requires = [
     'aiokafka==0.6.0',
     'templatekit==0.3.0',
     'confluent-kafka==0.11.6',
-    'GitPython==2.1.11',
+    'GitPython==3.1.3',
     'cachetools==3.1.0',
     'gidgethub==3.1.0',
 ]
