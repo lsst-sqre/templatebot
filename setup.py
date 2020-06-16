@@ -25,11 +25,11 @@ install_requires = [
     'cchardet==2.1.4',
     'structlog==18.2.0',
     'colorama==0.4.1',  # used by structlog
-    'click>=6.7,<7.0',
+    'click',
     'fastavro==0.21.16',
     'kafkit==0.2.0b3',
     'aiokafka==0.6.0',
-    'templatekit==0.3.0',
+    'templatekit==0.4.1',
     'confluent-kafka==0.11.6',
     'GitPython==3.1.3',
     'cachetools==3.1.0',

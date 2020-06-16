@@ -14,6 +14,9 @@ Change log
 
 - Updated GitPython to 3.1.3 to resolve a floating dependency error related to the ``gitdb.utils.compat`` module.
 
+- Updated templatekit to 0.4.1, matching the version used by `lsst/templates <https://github.com/lsst/templates>`__.
+  This change also allowed us to float the version of Click so that it would be set by cookiecutter/templatekit.
+
 0.1.0 (2019-11-29)
 ==================
 
