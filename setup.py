@@ -25,21 +25,21 @@ install_requires = [
     'cchardet==2.1.4',
     'structlog==18.2.0',
     'colorama==0.4.1',  # used by structlog
-    'click>=6.7,<7.0',
+    'click',
     'fastavro==0.21.16',
-    'kafkit==0.1.1',
-    'aiokafka==0.5.2',
-    'templatekit==0.3.0',
+    'kafkit==0.2.0b3',
+    'aiokafka==0.6.0',
+    'templatekit==0.4.1',
     'confluent-kafka==0.11.6',
-    'GitPython==2.1.11',
+    'GitPython==3.1.3',
     'cachetools==3.1.0',
     'gidgethub==3.1.0',
 ]
 
 # Test dependencies
 tests_require = [
-    'pytest==4.2.0',
-    'pytest-flake8==1.0.4',
+    'pytest==5.4.3',
+    'pytest-flake8==1.0.6',
     'aiohttp-devtools==0.11',
 ]
 tests_require += install_requires

@@ -2,6 +2,21 @@
 Change log
 ##########
 
+0.1.1 (2020-06-15)
+==================
+
+- Update aiokafka to 0.6.0.
+  This should resolve the uncaught UnknownMemberId exception that was causing the templatebot Kafka consumer to drop its connection to the Kafka brokers.
+
+- Update kafkit to 0.2.0b3.
+
+- Updated testing stack to pytest 5.4.3 and pytest-flake8 to 1.0.6.
+
+- Updated GitPython to 3.1.3 to resolve a floating dependency error related to the ``gitdb.utils.compat`` module.
+
+- Updated templatekit to 0.4.1, matching the version used by `lsst/templates <https://github.com/lsst/templates>`__.
+  This change also allowed us to float the version of Click so that it would be set by cookiecutter/templatekit.
+
 0.1.0 (2019-11-29)
 ==================
 
