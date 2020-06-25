@@ -120,10 +120,13 @@ async def handle_project_render(*, event, schema, app, logger):
             raise
 
         await post_message(
-            text=f"<@{event['slack_username']}>, I've pushed the first commit "
-                 f"to {event['github_repo']}. You can start working on it!\n\n"
-                 "If I have any extra work to do I'll send a PR and let you "
-                 "know in this thread.",
+            text=(
+                f"<@{event['slack_username']}>, the new repository is:\n\n"
+                f"{event['github_repo']}\n\n"
+                "You can start working on it!\n\n"
+                "_If I have any extra work to do, I'll send a PR and let you "
+                "know in this thread._"
+            ),
             channel=event['slack_channel'],
             thread_ts=event['slack_thread_ts'],
             logger=logger,
