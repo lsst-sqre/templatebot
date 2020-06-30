@@ -2,6 +2,11 @@
 Change log
 ##########
 
+0.1.2 (2020-06-30)
+==================
+
+- Improve messaging to the Slack user (always "at" the user).
+
 0.1.1 (2020-06-15)
 ==================
 
