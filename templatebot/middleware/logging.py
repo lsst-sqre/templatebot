@@ -2,12 +2,10 @@
 request information bound to it.
 """
 
-__all__ = ()
-
 import uuid
 
-from aiohttp import web
 import structlog
+from aiohttp import web
 
 from templatebot.logging import response_logger
 
@@ -93,7 +91,7 @@ async def bind_logger(request, handler):
     falls back to ``__name__``.
     """
     try:
-        logger_name = request.config_dict['api.lsst.codes/loggerName']
+        logger_name = request.config_dict["api.lsst.codes/loggerName"]
     except KeyError:
         logger_name = __name__
     logger = structlog.get_logger(logger_name)
@@ -107,7 +105,7 @@ async def bind_logger(request, handler):
     response_logger.set(logger)
 
     # Also add the logger to the request instance
-    request['logger'] = logger
+    request["logger"] = logger
 
     response = await handler(request)
 

@@ -1,8 +1,8 @@
-"""Workflow for working with the Slack users web API.
-"""
-__all__ = ('get_user_info',)
+"""Workflow for working with the Slack users web API."""
 
 import yarl
+
+__all__ = ["get_user_info"]
 
 
 async def get_user_info(*, user, logger, app):
@@ -17,26 +17,22 @@ async def get_user_info(*, user, logger, app):
     app
         Application instance.
     """
-    httpsession = app['root']['api.lsst.codes/httpSession']
+    httpsession = app["root"]["api.lsst.codes/httpSession"]
     headers = {
-        'content-type': 'application/x-www-form-urlencoded; charset=utf-8',
-        'authorization': f'Bearer {app["root"]["templatebot/slackToken"]}'
+        "content-type": "application/x-www-form-urlencoded; charset=utf-8",
+        "authorization": f'Bearer {app["root"]["templatebot/slackToken"]}',
     }
-    url = 'https://slack.com/api/users.info'
-    body = {
-        'token': app["root"]["templatebot/slackToken"],
-        'user': user
-    }
-    encoded_body = yarl.URL.build(query=body).query_string.encode('utf-8')
-    async with httpsession.post(url, data=encoded_body, headers=headers) \
-            as response:
+    url = "https://slack.com/api/users.info"
+    body = {"token": app["root"]["templatebot/slackToken"], "user": user}
+    encoded_body = yarl.URL.build(query=body).query_string.encode("utf-8")
+    async with httpsession.post(
+        url, data=encoded_body, headers=headers
+    ) as response:
         response_json = await response.json()
-        logger.debug(
-            'users.info reponse',
-            response=response_json)
-    if not response_json['ok']:
+        logger.debug("users.info reponse", response=response_json)
+    if not response_json["ok"]:
         logger.error(
-            'Got a Slack error from users.info',
-            response=response_json)
+            "Got a Slack error from users.info", response=response_json
+        )
 
     return response_json

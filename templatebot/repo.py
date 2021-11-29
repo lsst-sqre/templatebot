@@ -1,5 +1,4 @@
-"""Management of the template repository.
-"""
+"""Management of the template repository."""
 
 import shutil
 import uuid
@@ -31,7 +30,7 @@ class RepoManager:
         self._clones = {}  # keys are SHAs, values are Paths to the clone
         self._clone_refs = {}  # map branches/tags to SHAs
 
-    def clone(self, gitref='master'):
+    def clone(self, gitref="master"):
         """Clone the template repository corresponding to Git ref.
 
         Parameters
@@ -47,16 +46,17 @@ class RepoManager:
         # Make a unique directory for this clone
         clone_dir = self._cache_dir / str(uuid.uuid4())
         logger = self._logger.bind(git_ref=gitref, dirname=str(clone_dir))
-        logger.info('Cloning template repo')
+        logger.info("Cloning template repo")
         repo = git.Repo.clone_from(
             self._url,
             str(clone_dir),
             branch=gitref,
             depth=1,
             recurse_submodules=True,
-            shallow_submodules=True)
+            shallow_submodules=True,
+        )
         head_sha = repo.head.reference.commit.hexsha
-        logger.info('Resolved SHA of template repo clone', sha=head_sha)
+        logger.info("Resolved SHA of template repo clone", sha=head_sha)
 
         if head_sha in self._clones:
             # Already cloned this SHA
@@ -115,9 +115,8 @@ class RepoManager:
         return Repo(path)
 
     def delete_all(self):
-        """Delete all cloned repositories from the filesystem.
-        """
-        self._logger.info('Deleting clones', dirname=self._cache_dir)
+        """Delete all cloned repositories from the filesystem."""
+        self._logger.info("Deleting clones", dirname=self._cache_dir)
         shutil.rmtree(str(self._cache_dir))
         # Also reset internal pointer caches
         self._clones = {}
@@ -132,11 +131,11 @@ class RepoManager:
         repo = git.Repo(path=str(existing_repo_path))
         origin = repo.remotes[0]  # the only remote is origin
         for fetch_info in origin.fetch():
-            if fetch_info.ref.name == f'origin/{gitref}':
+            if fetch_info.ref.name == f"origin/{gitref}":
                 if fetch_info.commit.hexsha != existing_sha:
                     self._logger.info(
-                        f'{gitref} updated from {existing_sha} to '
-                        f'{fetch_info.commit.hexsha}; re-cloning'
+                        f"{gitref} updated from {existing_sha} to "
+                        f"{fetch_info.commit.hexsha}; re-cloning"
                     )
                     # The origin branch points to a different commit. This
                     # clones it, which also updates the self._clone_refs

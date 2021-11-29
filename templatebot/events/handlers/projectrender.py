@@ -1,20 +1,19 @@
-"""Rendering the initial commit for a GitHub repo with cookiecutter.
-"""
-
-__all__ = ('handle_project_render',)
+"""Rendering the initial commit for a GitHub repo with cookiecutter."""
 
 import copy
 import datetime
+import urllib.parse
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import urllib.parse
 
-from cookiecutter.main import cookiecutter
 import git
+from cookiecutter.main import cookiecutter
 
+from templatebot import github
 from templatebot.slack.chat import post_message
 from templatebot.slack.users import get_user_info
-from templatebot import github
+
+__all__ = ["handle_project_render"]
 
 
 async def handle_project_render(*, event, schema, app, logger):
@@ -37,23 +36,24 @@ async def handle_project_render(*, event, schema, app, logger):
     In this event, the GitHub repo has been built, and now we can push the
     first commit based on template content.
     """
-    logger.info('In handler_project_render')
+    logger.info("In handler_project_render")
 
-    template_name = event['template_name']
-    template_repo_ref = event['template_repo_ref']
-    repo = app['templatebot/repo'].get_repo(template_repo_ref)
+    template_name = event["template_name"]
+    template_repo_ref = event["template_repo_ref"]
+    repo = app["templatebot/repo"].get_repo(template_repo_ref)
     template = repo[template_name]
 
     # The comitter is the bot
     github_user = await github.get_authenticated_user(app=app, logger=logger)
-    committer_actor = git.Actor(github_user['name'], github_user['email'])
+    committer_actor = git.Actor(github_user["name"], github_user["email"])
 
     # If possible, associate the author with the requestor on Slack
-    if event['slack_username'] is not None:
+    if event["slack_username"] is not None:
         user_info = await get_user_info(
-            user=event['slack_username'], app=app, logger=logger)
-        real_name = user_info['user']['real_name']
-        email = user_info['user']['profile']['email']
+            user=event["slack_username"], app=app, logger=logger
+        )
+        real_name = user_info["user"]["real_name"]
+        email = user_info["user"]["profile"]["email"]
         author_actor = git.Actor(real_name, email)
     else:
         author_actor = committer_actor
@@ -65,34 +65,36 @@ async def handle_project_render(*, event, schema, app, logger):
             output_dir=tmpdir,
             overwrite_if_exists=True,
             no_input=True,
-            extra_context=event['variables'])
-        logger.debug('Rendered cookiecutter project')
+            extra_context=event["variables"],
+        )
+        logger.debug("Rendered cookiecutter project")
 
         # Find the rendered directory. The actual name is templated so its
         # easier to just find it.
         subdirs = [x for x in Path(tmpdir).iterdir() if x.is_dir()]
         if len(subdirs) > 1:
             logger.warning(
-                'Found an unexpected number of possible repo dirs',
-                dirs=subdirs)
+                "Found an unexpected number of possible repo dirs",
+                dirs=subdirs,
+            )
         repo_dir = subdirs[0]
 
         # Initialize the GitHub repo
         repo = git.Repo.init(str(repo_dir))
         repo.index.add(repo.untracked_files)
 
-        repo.index.commit("Initial commit",
-                          author=author_actor,
-                          committer=committer_actor)
+        repo.index.commit(
+            "Initial commit", author=author_actor, committer=committer_actor
+        )
 
         # Modify the repo URL to include auth info in the netloc
         # <user>:<token>@github.com
-        bottoken = app['root']['templatebot/githubToken']
-        botuser = app['root']['templatebot/githubUsername']
-        repo_url_parts = urllib.parse.urlparse(event['github_repo'])
+        bottoken = app["root"]["templatebot/githubToken"]
+        botuser = app["root"]["templatebot/githubUsername"]
+        repo_url_parts = urllib.parse.urlparse(event["github_repo"])
         authed_repo_url_parts = list(repo_url_parts)
         # The [1] index is the netloc.
-        authed_repo_url_parts[1] = f'{botuser}:{bottoken}@{repo_url_parts[1]}'
+        authed_repo_url_parts[1] = f"{botuser}:{bottoken}@{repo_url_parts[1]}"
         repo_url = urllib.parse.urlunparse(authed_repo_url_parts)
 
         # Push the GitHub repo
@@ -100,20 +102,22 @@ async def handle_project_render(*, event, schema, app, logger):
         try:
             origin.push(refspec="master:master")
         except git.exc.GitCommandError:
-            logger.exception('Error pushing to GitHub origin',
-                             origin_url=event['github_repo'])
-            if event['slack_username'] is not None:
+            logger.exception(
+                "Error pushing to GitHub origin",
+                origin_url=event["github_repo"],
+            )
+            if event["slack_username"] is not None:
                 await post_message(
                     text=f"<@{event['slack_username']}>, oh no! "
-                         ":slightly_frowning_face:, something went wrong when "
-                         "I tried to push the initial Git commit to "
-                         f"{event['github_repo']}.\n\nI can't do anything to "
-                         "fix it. Could you ask someone at SQuaRE to look "
-                         "into it?",
-                    channel=event['slack_channel'],
-                    thread_ts=event['slack_thread_ts'],
+                    ":slightly_frowning_face:, something went wrong when "
+                    "I tried to push the initial Git commit to "
+                    f"{event['github_repo']}.\n\nI can't do anything to "
+                    "fix it. Could you ask someone at SQuaRE to look "
+                    "into it?",
+                    channel=event["slack_channel"],
+                    thread_ts=event["slack_thread_ts"],
                     logger=logger,
-                    app=app
+                    app=app,
                 )
             # TODO: add a few retries here for cases GitHub itself doesn't
             # see its own repo yet.
@@ -127,30 +131,30 @@ async def handle_project_render(*, event, schema, app, logger):
                 "_If I have any extra work to do, I'll send a PR and let you "
                 "know in this thread._"
             ),
-            channel=event['slack_channel'],
-            thread_ts=event['slack_thread_ts'],
+            channel=event["slack_channel"],
+            thread_ts=event["slack_thread_ts"],
             logger=logger,
-            app=app
+            app=app,
         )
 
-        logger.info(
-            'Pushed to GitHub origin',
-            origin_url=event['github_repo'])
+        logger.info("Pushed to GitHub origin", origin_url=event["github_repo"])
 
         # Send the postrender event
         # First, copy and reset the event based on render_ready
         postrender_payload = copy.deepcopy(event)
-        postrender_payload['retry_count'] = 0
+        postrender_payload["retry_count"] = 0
         now = datetime.datetime.now(datetime.timezone.utc)
-        postrender_payload['initial_timestamp'] = now
+        postrender_payload["initial_timestamp"] = now
 
-        serializer = app['templatebot/eventSerializer']
+        serializer = app["templatebot/eventSerializer"]
         postrender_data = await serializer.serialize(
-            'templatebot.postrender_v1', postrender_payload)
-        producer = app['templatebot/producer']
-        topic_name = app['root']['templatebot/postrenderTopic']
+            "templatebot.postrender_v1", postrender_payload
+        )
+        producer = app["templatebot/producer"]
+        topic_name = app["root"]["templatebot/postrenderTopic"]
         await producer.send_and_wait(topic_name, postrender_data)
         logger.debug(
-            'Sent postrender event',
+            "Sent postrender event",
             postrender_topic=topic_name,
-            payload=postrender_payload)
+            payload=postrender_payload,
+        )

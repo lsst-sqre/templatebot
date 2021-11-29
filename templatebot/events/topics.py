@@ -1,10 +1,9 @@
-"""Kafka topic configuration for Templatebot's own topics.
-"""
+"""Kafka topic configuration for Templatebot's own topics."""
 
-__all__ = ('configure_topics',)
-
-from confluent_kafka.admin import AdminClient, NewTopic
 import structlog
+from confluent_kafka.admin import AdminClient, NewTopic
+
+__all__ = ["configure_topics"]
 
 
 def configure_topics(app):
@@ -29,19 +28,21 @@ def configure_topics(app):
     - ``tempatebot/renderreadyTopic``
     - ``templatebot/postrenderTopic``
     """
-    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger = structlog.get_logger(app["root"]["api.lsst.codes/loggerName"])
 
     default_num_partitions = 1
     default_replication_factor = 3
 
-    client = AdminClient({
-        'bootstrap.servers': app['root']['templatebot/brokerUrl']
-    })
+    client = AdminClient(
+        {"bootstrap.servers": app["root"]["templatebot/brokerUrl"]}
+    )
 
     # Set up topic names
-    topic_keys = ('templatebot/prerenderTopic',
-                  'templatebot/renderreadyTopic',
-                  'templatebot/postrenderTopic')
+    topic_keys = (
+        "templatebot/prerenderTopic",
+        "templatebot/renderreadyTopic",
+        "templatebot/postrenderTopic",
+    )
 
     # First list existing topics
     metadata = client.list_topics(timeout=10)
@@ -50,20 +51,24 @@ def configure_topics(app):
     # Create any topics that don't already exist
     new_topics = []
     for key in topic_keys:
-        topic_name = app['root'][key]
+        topic_name = app["root"][key]
         if topic_name in existing_topic_names:
             topic = metadata.topics[topic_name]
             partitions = [p for p in iter(topic.partitions.values())]
             logger.info(
-                'Topic exists',
+                "Topic exists",
                 topic=topic_name,
                 partitions=len(topic.partitions),
-                replication_factor=len(partitions[0].replicas))
+                replication_factor=len(partitions[0].replicas),
+            )
             continue
-        new_topics.append(NewTopic(
-            topic_name,
-            num_partitions=default_num_partitions,
-            replication_factor=default_replication_factor))
+        new_topics.append(
+            NewTopic(
+                topic_name,
+                num_partitions=default_num_partitions,
+                replication_factor=default_replication_factor,
+            )
+        )
 
     if len(new_topics) > 0:
         fs = client.create_topics(new_topics)
@@ -71,11 +76,12 @@ def configure_topics(app):
             try:
                 f.result()  # The result itself is None
                 logger.info(
-                    'Created topic',
+                    "Created topic",
                     topic=topic_name,
-                    partitions=default_num_partitions)
+                    partitions=default_num_partitions,
+                )
             except Exception as e:
                 logger.error(
-                    'Failed to create topic',
-                    topic=topic_name, error=str(e))
+                    "Failed to create topic", topic=topic_name, error=str(e)
+                )
                 raise
