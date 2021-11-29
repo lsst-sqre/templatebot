@@ -82,7 +82,7 @@ def create_config():
     )
 
     # Default Git ref for the template repository ('templatebot/repo')
-    c["templatebot/repoRef"] = os.getenv("TEMPLATEBOT_REPO_REF", "master")
+    c["templatebot/repoRef"] = os.getenv("TEMPLATEBOT_REPO_REF", "main")
 
     # GitHub token for SQuaRE bot
     c["templatebot/githubToken"] = os.getenv("TEMPLATEBOT_GITHUB_TOKEN")
