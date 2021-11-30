@@ -80,7 +80,7 @@ async def handle_project_render(*, event, schema, app, logger):
         repo_dir = subdirs[0]
 
         # Initialize the GitHub repo
-        repo = git.Repo.init(str(repo_dir))
+        repo = git.Repo.init(str(repo_dir), b="main")
         repo.index.add(repo.untracked_files)
 
         repo.index.commit(
@@ -100,7 +100,7 @@ async def handle_project_render(*, event, schema, app, logger):
         # Push the GitHub repo
         origin = repo.create_remote("origin", url=repo_url)
         try:
-            origin.push(refspec="master:master")
+            origin.push(refspec="main:main")
         except git.exc.GitCommandError:
             logger.exception(
                 "Error pushing to GitHub origin",
