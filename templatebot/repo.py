@@ -30,7 +30,7 @@ class RepoManager:
         self._clones = {}  # keys are SHAs, values are Paths to the clone
         self._clone_refs = {}  # map branches/tags to SHAs
 
-    def clone(self, gitref="master"):
+    def clone(self, gitref="main"):
         """Clone the template repository corresponding to Git ref.
 
         Parameters
