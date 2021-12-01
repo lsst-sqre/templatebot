@@ -50,6 +50,10 @@ def create_config():
         os.getenv("TEMPLATEBOT_CACHE_PATH", ".templatebot_repos")
     )
 
+    c["templatebot/certCacheDir"] = Path(
+        os.getenv("TEMPLATEBOT_CERT_CACHE", ".")
+    )
+
     # Schema Registry hostname (use same config variable as SQRBOTJR)
     c["templatebot/registryUrl"] = os.getenv("REGISTRY_URL")
 

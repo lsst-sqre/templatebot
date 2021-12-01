@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 import ssl
 import sys
 from pathlib import Path
@@ -201,7 +200,9 @@ async def configure_kafka_ssl(app):
         client_ca = Path(client_ca_cert_path).read_text()
         client_cert = Path(client_cert_path).read_text()
         new_client_cert = "\n".join([client_cert, client_ca])
-        new_client_cert_path = Path(os.getenv("APPDIR", ".")) / "client.crt"
+        new_client_cert_path = (
+            app["root"]["templatebot/certCacheDir"] / "client.crt"
+        )
         new_client_cert_path.write_text(new_client_cert)
         client_cert_path = str(new_client_cert_path)
 
