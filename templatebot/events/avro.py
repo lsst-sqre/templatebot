@@ -1,16 +1,15 @@
-"""Avro serialization and schema management for templatebot.* schemas.
-"""
-
-__all__ = ('Serializer',)
+"""Avro serialization and schema management for templatebot.* schemas."""
 
 import functools
 import json
 from pathlib import Path
 
-import structlog
 import fastavro
-from kafkit.registry.serializer import PolySerializer
 import kafkit.registry.errors
+import structlog
+from kafkit.registry.serializer import PolySerializer
+
+__all__ = ["Serializer"]
 
 
 class Serializer:
@@ -32,7 +31,7 @@ class Serializer:
         the app. Leave as an empty string if the application is not in staging.
     """
 
-    def __init__(self, *, serializer, logger, suffix=''):
+    def __init__(self, *, serializer, logger, suffix=""):
         self._serializer = serializer
         self._logger = logger
         self._subject_suffix = suffix
@@ -54,13 +53,13 @@ class Serializer:
         serializer : `Serializer`
             An instance of the serializer.
         """
-        logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+        logger = structlog.get_logger(app["root"]["api.lsst.codes/loggerName"])
 
-        logger.debug('all schemas', schemas=list_schemas())
+        logger.debug("all schemas", schemas=list_schemas())
         for event_type in list_schemas():
             schema = load_schema(
-                event_type,
-                suffix=app['root']['templatebot/subjectSuffix'])
+                event_type, suffix=app["root"]["templatebot/subjectSuffix"]
+            )
             await register_schema(registry, schema, app)
 
         serializer = PolySerializer(registry=registry)
@@ -68,7 +67,8 @@ class Serializer:
         return cls(
             serializer=serializer,
             logger=logger,
-            suffix=app['root']['templatebot/subjectSuffix'])
+            suffix=app["root"]["templatebot/subjectSuffix"],
+        )
 
     async def serialize(self, schema_name, message):
         """Serialize a Slack event.
@@ -84,13 +84,12 @@ class Serializer:
             Data encoded in the Confluent Wire Format, ready to be sent to a
             Kafka broker.
         """
-        schema = load_schema(schema_name,
-                             suffix=self._subject_suffix)
+        schema = load_schema(schema_name, suffix=self._subject_suffix)
         return await self._serializer.serialize(message, schema=schema)
 
 
 @functools.lru_cache()
-def load_schema(name, suffix=''):
+def load_schema(name, suffix=""):
     """Load an Avro schema from the local app data.
 
     This function is memoized so that repeated calls are fast.
@@ -110,13 +109,13 @@ def load_schema(name, suffix=''):
     schema : `dict`
         A schema object.
     """
-    schemas_dir = Path(__file__).parent / 'schemas'
-    schema_path = schemas_dir / f'{name}.json'
+    schemas_dir = Path(__file__).parent / "schemas"
+    schema_path = schemas_dir / f"{name}.json"
 
     schema = json.loads(schema_path.read_text())
 
     if suffix:
-        schema['name'] = ''.join((schema['name'], suffix))
+        schema["name"] = "".join((schema["name"], suffix))
 
     return fastavro.parse_schema(schema)
 
@@ -137,8 +136,8 @@ def list_schemas():
 
     This function is cached, so repeated calls consume no additional IO.
     """
-    schemas_dir = Path(__file__).parent / 'schemas'
-    schema_paths = schemas_dir.glob('*.json')
+    schemas_dir = Path(__file__).parent / "schemas"
+    schema_paths = schemas_dir.glob("*.json")
     return [p.stem for p in schema_paths]
 
 
@@ -162,42 +161,44 @@ async def register_schema(registry, schema, app):
     (the ``templatebot/subjectCompatibility`` configuration).
     """
     # TODO This function is lifted from sqrbot-jr. Add it to Kafkit?
-    logger = structlog.get_logger(app['root']['api.lsst.codes/loggerName'])
+    logger = structlog.get_logger(app["root"]["api.lsst.codes/loggerName"])
 
-    desired_compat = app['root']['templatebot/subjectCompatibility']
+    desired_compat = app["root"]["templatebot/subjectCompatibility"]
 
     schema_id = await registry.register_schema(schema)
-    logger.info('Registered schema', subject=schema['name'], id=schema_id)
+    logger.info("Registered schema", subject=schema["name"], id=schema_id)
 
-    subjects = await registry.get('/subjects')
-    logger.info('All subjects', subjects=subjects)
+    subjects = await registry.get("/subjects")
+    logger.info("All subjects", subjects=subjects)
 
-    subject_name = schema['name']
+    subject_name = schema["name"]
 
     try:
         subject_config = await registry.get(
-            '/config{/subject}',
-            url_vars={'subject': subject_name})
+            "/config{/subject}", url_vars={"subject": subject_name}
+        )
     except kafkit.registry.errors.RegistryBadRequestError:
-        logger.info('No existing configuration for this subject.',
-                    subject=subject_name)
-        # Create a mock config that forces a reset
-        subject_config = {
-            'compatibilityLevel': None
-        }
-
-    logger.info('Current subject config', config=subject_config)
-    if subject_config['compatibilityLevel'] != desired_compat:
-        await registry.put(
-            '/config{/subject}',
-            url_vars={'subject': subject_name},
-            data={'compatibility': desired_compat})
         logger.info(
-            'Reset subject compatibility level',
-            subject=schema['name'],
-            compatibility_level=desired_compat)
+            "No existing configuration for this subject.", subject=subject_name
+        )
+        # Create a mock config that forces a reset
+        subject_config = {"compatibilityLevel": None}
+
+    logger.info("Current subject config", config=subject_config)
+    if subject_config["compatibilityLevel"] != desired_compat:
+        await registry.put(
+            "/config{/subject}",
+            url_vars={"subject": subject_name},
+            data={"compatibility": desired_compat},
+        )
+        logger.info(
+            "Reset subject compatibility level",
+            subject=schema["name"],
+            compatibility_level=desired_compat,
+        )
     else:
         logger.info(
-            'Existing subject compatibility level is good',
-            subject=schema['name'],
-            compatibility_level=subject_config['compatibilityLevel'])
+            "Existing subject compatibility level is good",
+            subject=schema["name"],
+            compatibility_level=subject_config["compatibilityLevel"],
+        )

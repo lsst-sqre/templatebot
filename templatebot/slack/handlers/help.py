@@ -1,7 +1,6 @@
-"""Handler for help messages.
-"""
+"""Handler for help messages."""
 
-__all__ = ('handle_generic_help',)
+__all__ = ["handle_generic_help"]
 
 
 async def handle_generic_help(*, event, app, logger):
@@ -20,28 +19,28 @@ async def handle_generic_help(*, event, app, logger):
         A structlog logger, typically with event information already
         bound to it.
     """
-    event_channel = event['event']['channel']
-    thread_ts = event['event']['ts']
-    httpsession = app['root']['api.lsst.codes/httpSession']
+    event_channel = event["event"]["channel"]
+    thread_ts = event["event"]["ts"]
+    httpsession = app["root"]["api.lsst.codes/httpSession"]
     headers = {
-        'content-type': 'application/json; charset=utf-8',
-        'authorization': f'Bearer {app["root"]["templatebot/slackToken"]}'
+        "content-type": "application/json; charset=utf-8",
+        "authorization": f'Bearer {app["root"]["templatebot/slackToken"]}',
     }
     body = {
-        'token': app["root"]["templatebot/slackToken"],
-        'channel': event_channel,
-        'thread_ts': thread_ts,
-        'text': _make_text_summary(),
-        'mrkdwn': True,
-        'blocks': _make_blocks()
+        "token": app["root"]["templatebot/slackToken"],
+        "channel": event_channel,
+        "thread_ts": thread_ts,
+        "text": _make_text_summary(),
+        "mrkdwn": True,
+        "blocks": _make_blocks(),
     }
-    url = 'https://slack.com/api/chat.postMessage'
+    url = "https://slack.com/api/chat.postMessage"
     async with httpsession.post(url, json=body, headers=headers) as response:
         response_json = await response.json()
-    if not response_json['ok']:
+    if not response_json["ok"]:
         logger.error(
-            'Got a Slack error from chat.postMessage',
-            contents=response_json)
+            "Got a Slack error from chat.postMessage", contents=response_json
+        )
 
 
 def _make_text_summary():
@@ -60,8 +59,9 @@ def _make_blocks():
                 "• Create a GitHub repo from a template: "
                 "```create project```\n"
                 "• Create a file or snippet from a template: "
-                "```create file```"),
-        }
+                "```create file```"
+            ),
+        },
     }
     context = {
         "type": "context",
@@ -72,9 +72,9 @@ def _make_blocks():
                     "Handled by <https://github.com/lsst-sqre/templatebot"
                     "|templatebot>. The template repository is "
                     "https://github.com/lsst/templates."
-                )
+                ),
             }
-        ]
+        ],
     }
 
     return [main_section, context]

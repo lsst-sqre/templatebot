@@ -1,7 +1,6 @@
-"""Utilities for working with the GitHub API.
-"""
+"""Utilities for working with the GitHub API."""
 
-__all__ = ('get_authenticated_user',)
+__all__ = ["get_authenticated_user"]
 
 
 async def get_authenticated_user(*, app, logger):
@@ -24,6 +23,6 @@ async def get_authenticated_user(*, app, logger):
     response : `dict`
         The parsed JSON response body from GitHub.
     """
-    ghclient = app['root']['templatebot/gidgethub']
-    response = await ghclient.getitem('/user')
+    ghclient = app["root"]["templatebot/gidgethub"]
+    response = await ghclient.getitem("/user")
     return response

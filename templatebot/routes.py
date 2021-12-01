@@ -1,10 +1,8 @@
-"""API routes.
-"""
-
-__all__ = ('root_routes', 'routes', 'init_root_routes', 'init_routes')
+"""API routes."""
 
 from aiohttp import web
 
+__all__ = ["root_routes", "routes", "init_root_routes", "init_routes"]
 
 root_routes = web.RouteTableDef()
 """Routes for the root application that serves from '/'
@@ -27,6 +25,7 @@ def init_routes():
     # Import handlers so that they are registered with the routes table via
     # decorators.
     import templatebot.handlers  # noqa: F401
+
     return routes
 
 
@@ -37,4 +36,5 @@ def init_root_routes():
     # Import handlers so that they are registered with the routes table via
     # decorators.
     import templatebot.roothandlers  # noqa: F401
+
     return root_routes
