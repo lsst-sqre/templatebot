@@ -1,6 +1,7 @@
 """Configuration collection."""
 
 import os
+from pathlib import Path
 
 __all__ = ["create_config"]
 
@@ -43,6 +44,11 @@ def create_config():
         "API_LSST_CODES_LOG_LEVEL",
         "info" if c["api.lsst.codes/profile"] == "production" else "debug",
     ).upper()
+
+    # Path of the repository cache
+    c["templatebot/repoCachePath"] = Path(
+        os.getenv("TEMPLATEBOT_CACHE_PATH", ".templatebot_repos")
+    )
 
     # Schema Registry hostname (use same config variable as SQRBOTJR)
     c["templatebot/registryUrl"] = os.getenv("REGISTRY_URL")

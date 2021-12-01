@@ -238,7 +238,7 @@ async def init_repo_manager(app):
     """Create and cleanup the RepoManager."""
     manager = RepoManager(
         url=app["root"]["templatebot/repoUrl"],
-        cache_dir=Path(".templatebot_repos"),
+        cache_dir=app["root"]["templatebot/repoCachePath"],
         logger=structlog.get_logger(app["root"]["api.lsst.codes/loggerName"]),
     )
     manager.clone(gitref=app["root"]["templatebot/repoRef"])

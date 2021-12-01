@@ -15,28 +15,36 @@ spec:
         app: templatebot
     spec:
       containers:
-      - name: templatebot-app
-        image: lsstsqre/templatebot
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8080
-          name: templatebot-app
-        env:
-        - name: SLACK_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: templatebot
-              key: SLACK_TOKEN
-        - name: TEMPLATEBOT_GITHUB_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: templatebot
-              key: TEMPLATEBOT_GITHUB_TOKEN
-        - name: TEMPLATEBOT_GITHUB_USER
-          valueFrom:
-            secretKeyRef:
-              name: templatebot
-              key: TEMPLATEBOT_GITHUB_USER
-        envFrom:
-        - configMapRef:
-            name: templatebot
+        - name: templatebot-app
+          image: lsstsqre/templatebot
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: templatebot-app
+          env:
+            - name: SLACK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: templatebot
+                  key: SLACK_TOKEN
+            - name: TEMPLATEBOT_GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: templatebot
+                  key: TEMPLATEBOT_GITHUB_TOKEN
+            - name: TEMPLATEBOT_GITHUB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: templatebot
+                  key: TEMPLATEBOT_GITHUB_USER
+            - name: TEMPLATEBOT_CACHE_PATH
+              value: "/etc/templatebot-repo-cache"
+          envFrom:
+            - configMapRef:
+                name: templatebot
+          volumeMounts:
+            - name: "repo-cache"
+              mountPath: "/etc/templatebot-repo-cache"
+      volumes:
+        - name: "repo-cache"
+          emptyDir: {}
