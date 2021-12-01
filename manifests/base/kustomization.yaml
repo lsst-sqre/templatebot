@@ -7,4 +7,4 @@ resources:
 
 images:
   - name: lsstsqre/templatebot
-    newTag: 0.1.2
+    newTag: 0.2.0
