@@ -7,8 +7,14 @@
 
 -c main.txt
 
+# Testing and linting
+mypy
 pytest
 pytest-coverage
-aiohttp-devtools
 pytest-aiohttp
+
+# Development server
+aiohttp-devtools
+
+# Documentation
 documenteer[pipelines]
