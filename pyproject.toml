@@ -22,9 +22,6 @@ requires-python = ">=3.12"
 dependencies = []
 dynamic = ["version"]
 
-[project.scripts]
-example = "example.cli:main"
-
 [project.urls]
 Homepage = "https://github.com/lsst-sqre/templatebot"
 Source = "https://github.com/lsst-sqre/templatebot"
