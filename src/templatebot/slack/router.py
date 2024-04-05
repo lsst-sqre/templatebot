@@ -1,12 +1,8 @@
 """Route incoming Slack messages from SQuaRE Events to handlers."""
 
-import asyncio
 import re
 
 import structlog
-from aiokafka import AIOKafkaConsumer
-from kafkit.registry import Deserializer
-from kafkit.registry.aiohttp import RegistryApi
 
 from .handlers import (
     handle_file_creation,
@@ -18,106 +14,7 @@ from .handlers import (
     handle_project_select_action,
 )
 
-__all__ = ["consume_kafka"]
-
 MENTION_PATTERN = re.compile(r"<(@[a-zA-Z0-9]+|!subteam\^[a-zA-Z0-9]+)>")
-
-
-async def consume_kafka(app):
-    """Consume Kafka messages directed to templatebot's functionality."""
-    logger = structlog.get_logger(app["root"]["api.lsst.codes/loggerName"])
-
-    registry = RegistryApi(
-        session=app["root"]["api.lsst.codes/httpSession"],
-        url=app["root"]["templatebot/registryUrl"],
-    )
-    deserializer = Deserializer(registry=registry)
-
-    consumer_settings = {
-        "bootstrap_servers": app["root"]["templatebot/brokerUrl"],
-        "group_id": app["root"]["templatebot/slackGroupId"],
-        "auto_offset_reset": "latest",
-        "ssl_context": app["root"]["templatebot/kafkaSslContext"],
-        "security_protocol": app["root"]["templatebot/kafkaProtocol"],
-    }
-    consumer = AIOKafkaConsumer(
-        loop=asyncio.get_event_loop(), **consumer_settings
-    )
-
-    try:
-        await consumer.start()
-        logger.info("Started Kafka consumer", **consumer_settings)
-
-        topic_names = [
-            app["root"]["templatebot/appMentionTopic"],
-            app["root"]["templatebot/messageImTopic"],
-            app["root"]["templatebot/interactionTopic"],
-        ]
-        logger.info("Subscribing to Kafka topics", names=topic_names)
-        consumer.subscribe(topic_names)
-
-        logger.info("Finished subscribing ot Kafka topics", names=topic_names)
-
-        partitions = consumer.assignment()
-        logger.info("Waiting on partition assignment", names=topic_names)
-        while len(partitions) == 0:
-            # Wait for the consumer to get partition assignment
-            await asyncio.sleep(1.0)
-            partitions = consumer.assignment()
-        logger.info(
-            "Initial partition assignment",
-            partitions=[str(p) for p in partitions],
-        )
-
-        async for message in consumer:
-            logger.info(
-                "Got Kafka message from sqrbot",
-                topic=message.topic,
-                partition=message.partition,
-                offset=message.offset,
-            )
-            try:
-                message_info = await deserializer.deserialize(message.value)
-            except Exception:
-                logger.exception(
-                    "Failed to deserialize a message",
-                    topic=message.topic,
-                    partition=message.partition,
-                    offset=message.offset,
-                )
-                continue
-
-            event = message_info["message"]
-            logger.debug(
-                "New message",
-                topic=message.topic,
-                partition=message.partition,
-                offset=message.offset,
-                contents=event,
-            )
-
-            try:
-                await route_event(
-                    event=message_info["message"],
-                    app=app,
-                    schema_id=message_info["id"],
-                    topic=message.topic,
-                    partition=message.partition,
-                    offset=message.offset,
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to handle message",
-                    topic=message.topic,
-                    partition=message.partition,
-                    offset=message.offset,
-                )
-
-    except asyncio.CancelledError:
-        logger.info("consume_kafka task got cancelled")
-    finally:
-        logger.info("consume_kafka task cancelling")
-        await consumer.stop()
 
 
 async def route_event(*, event, schema_id, topic, partition, offset, app):
