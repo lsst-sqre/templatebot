@@ -1,9 +1,13 @@
 """Management of the template repository."""
 
+from __future__ import annotations
+
 import shutil
 import uuid
+from pathlib import Path
 
 import git
+from structlog.stdlib import BoundLogger
 from templatekit.repo import Repo
 
 
@@ -13,34 +17,39 @@ class RepoManager:
 
     Parameters
     ----------
-    url : `str`
+    url
         URL of a templatekit-compatible Git repository.
-    cache_dir : `pathlib.Path`
+    cache_dir
         Directory containing the cloned template repositories for all Git SHAs.
     logger
         ``structlog`` logger instance.
     """
 
-    def __init__(self, *, url, cache_dir, logger):
+    def __init__(
+        self, *, url: str, cache_dir: Path, logger: BoundLogger
+    ) -> None:
         self._logger = logger
         self._url = url
         self._cache_dir = cache_dir
         self._cache_dir.mkdir(exist_ok=True)
 
-        self._clones = {}  # keys are SHAs, values are Paths to the clone
-        self._clone_refs = {}  # map branches/tags to SHAs
+        # keys are SHAs, values are repo paths
+        self._clones: dict[str, Path] = {}
 
-    def clone(self, gitref="main"):
+        # map branches/tags to SHAs
+        self._clone_refs: dict[str, str] = {}
+
+    def clone(self, gitref: str = "main") -> Path:
         """Clone the template repository corresponding to Git ref.
 
         Parameters
         ----------
-        gitref : `str`
-            A git ref (branch, tag, or SHA string) of the template repsitory.
+        gitref
+            A git ref (branch, tag, or SHA string) of the template repository.
 
         Returns
         -------
-        path : `pathlib.Path`
+        pathlib.Path
             Path of the template repository clone.
         """
         # Make a unique directory for this clone
@@ -71,19 +80,19 @@ class RepoManager:
 
         return self._clones[head_sha]
 
-    def get_checkout_path(self, gitref):
+    def get_checkout_path(self, gitref: str) -> Path:
         """Get the path to a cloned repository for a given Git ref.
 
         If a clone is available, the method makes a new clone.
 
         Parameters
         ----------
-        gitref : `str`
+        gitref
             A git ref (branch, tag, or SHA string) of the template repsitory.
 
         Returns
         -------
-        path : `pathlib.Path`
+        pathlib.Path
             Path of the template repository clone.
         """
         if gitref in self._clones:
@@ -98,23 +107,23 @@ class RepoManager:
             # No record of this gitref; need to make a new clone
             return self.clone(gitref=gitref)
 
-    def get_repo(self, gitref):
+    def get_repo(self, gitref: str) -> Repo:
         """Open a repo clone with templatekit.
 
         Parameters
         ----------
-        gitref : `str`
+        gitref
             A git ref (branch, tag, or SHA string) of the template repository.
 
         Returns
         -------
-        repo : `templatekit.repo.Repo`
+        templatekit.repo.Repo
             Template repository.
         """
         path = self.get_checkout_path(gitref=gitref)
         return Repo(path)
 
-    def delete_all(self):
+    def delete_all(self) -> None:
         """Delete all cloned repositories from the filesystem."""
         self._logger.info("Deleting clones", dirname=self._cache_dir)
         shutil.rmtree(str(self._cache_dir))
@@ -122,8 +131,8 @@ class RepoManager:
         self._clones = {}
         self._clone_refs = {}
 
-    def _refresh_checkout(self, gitref):
-        """Checks if the Git origin has a new SHA associated with its head,
+    def _refresh_checkout(self, gitref: str) -> None:
+        """Check if the Git origin has a new SHA associated with its head,
         and if so, creates a new clone with that SHA.
         """
         existing_sha = self._clone_refs[gitref]
