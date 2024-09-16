@@ -94,6 +94,7 @@ python_files = ["tests/*.py", "tests/*/*.py"]
 # Reference for rules: https://beta.ruff.rs/docs/rules/
 [tool.ruff]
 extend = "ruff-shared.toml"
+extend-exclude = ["original/**"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["templatebot", "tests"]

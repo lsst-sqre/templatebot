@@ -74,7 +74,7 @@ async def handle_project_dialog_submission(*, event_data, logger, app):
         "template_repo": app["root"]["templatebot/repoUrl"],
         "template_repo_ref": app["root"]["templatebot/repoRef"],
         "retry_count": 0,
-        "initial_timestamp": datetime.datetime.now(datetime.timezone.utc),
+        "initial_timestamp": datetime.datetime.now(datetime.UTC),
         "slack_username": user_id,
         "slack_channel": channel_id,
         "slack_thread_ts": slack_thread_ts,

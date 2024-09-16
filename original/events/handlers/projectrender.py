@@ -143,7 +143,7 @@ async def handle_project_render(*, event, schema, app, logger):
         # First, copy and reset the event based on render_ready
         postrender_payload = copy.deepcopy(event)
         postrender_payload["retry_count"] = 0
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         postrender_payload["initial_timestamp"] = now
 
         serializer = app["templatebot/eventSerializer"]

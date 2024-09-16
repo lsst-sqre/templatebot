@@ -52,7 +52,7 @@ async def open_template_dialog(
         "trigger_id": event_data["trigger_id"],
         "dialog": {
             "title": dialog_title,
-            "callback_id": f"{callback_id_root}_{str(uuid.uuid4())}",
+            "callback_id": f"{callback_id_root}_{uuid.uuid4()!s}",
             "state": json.dumps(state),
             "notify_on_cancel": True,
             "elements": elements,
@@ -221,7 +221,6 @@ def post_process_dialog_submission(*, submission_data, template):
     data = {k: v for k, v in submission_data.items() if v is not None}
 
     for field in template.config["dialog_fields"]:
-
         if "preset_groups" in field:
             # Handle as a preset_groups select menu
             selected_label = data[field["label"]]

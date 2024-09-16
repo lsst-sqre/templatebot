@@ -1,5 +1,4 @@
-"""Slack handler when a user submits a dialog to create a file.
-"""
+"""Slack handler when a user submits a dialog to create a file."""
 
 import json
 import os.path
