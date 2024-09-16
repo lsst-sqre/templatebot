@@ -10,10 +10,10 @@ help:
 .PHONY: init
 init:
 	pip install --upgrade uv
-	uv pip install --upgrade pre-commit tox
-	uv pip install --editable .
 	uv pip install -r requirements/main.txt -r requirements/dev.txt
+	uv pip install --editable .
 	rm -rf .tox
+	uv pip install --upgrade pre-commit
 	pre-commit install
 
 .PHONY: run
@@ -28,16 +28,9 @@ update-deps:
 	pip install --upgrade uv
 	uv pip install --upgrade pre-commit
 	pre-commit autoupdate
-	uv pip compile --upgrade --generate-hashes			\
+	uv pip compile --upgrade --universal --generate-hashes		\
 	    --output-file requirements/main.txt requirements/main.in
-	uv pip compile --upgrade --generate-hashes			\
+	uv pip compile --upgrade --universal --generate-hashes		\
 	    --output-file requirements/dev.txt requirements/dev.in
-
-# Useful for testing against a Git version of Safir.
-.PHONY: update-deps-no-hashes
-update-deps-no-hashes:
-	pip install --upgrade uv
-	uv pip compile --upgrade					\
-	    --output-file requirements/main.txt requirements/main.in
-	uv pip compile --upgrade					\
-	    --output-file requirements/dev.txt requirements/dev.in
+	uv pip compile --upgrade --universal --generate-hashes		\
+	    --output-file requirements/tox.txt requirements/tox.in

@@ -1,3 +1,5 @@
+# -*- conf -*-
+#
 # Editable development dependencies
 # Add direct development, test, and documentation dependencies here, as well
 # as implicit dev dependencies with constrained versions.
@@ -7,14 +9,15 @@
 
 -c main.txt
 
-# Testing and linting
+# Testing
+asgi-lifespan
+coverage[toml]
+httpx
 mypy
+pydantic
 pytest
-pytest-coverage
-pytest-aiohttp
-
-# Development server
-aiohttp-devtools
+pytest-asyncio
+pytest-cov
 
 # Documentation
-documenteer[pipelines]
+scriv
