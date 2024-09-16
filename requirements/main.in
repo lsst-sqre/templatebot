@@ -16,7 +16,7 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 safir[redis]>=5
-faststream[kafka]
+faststream[kafka]<0.5.0 # Protect against change to ConsumerContextDependency
 rubin-squarebot>=0.8.0
 templatekit
 GitPython
