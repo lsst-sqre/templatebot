@@ -96,6 +96,11 @@ python_files = ["tests/*.py", "tests/*/*.py"]
 extend = "ruff-shared.toml"
 extend-exclude = ["original/**"]
 
+[tool.ruff.lint.extend-per-file-ignores]
+"noxfile.py" = [
+    "D100",  # No docstring for module
+]
+
 [tool.ruff.lint.isort]
 known-first-party = ["templatebot", "tests"]
 split-on-trailing-comma = false

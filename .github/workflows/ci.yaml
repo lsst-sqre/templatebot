@@ -47,12 +47,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run tox
-        uses: lsst-sqre/run-tox@v1
+      - name: Run nox
+        uses: lsst-sqre/run-nox@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          tox-envs: "py,coverage-report,typing"
-          tox-requirements: requirements/tox.txt
+          cache-dependency: "requirements/*.txt"
+          nox-sessions: "typing test"
 
   build:
     runs-on: ubuntu-latest
