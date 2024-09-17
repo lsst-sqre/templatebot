@@ -6,6 +6,11 @@ from typing import Self
 from httpx import AsyncClient
 from structlog.stdlib import BoundLogger
 
+from templatebot.services.slackmessage import SlackMessageService
+from templatebot.storage.slack import SlackWebApiClient
+
+from .config import config
+
 __all__ = ["Factory", "ProcessContext"]
 
 
@@ -54,3 +59,17 @@ class Factory:
             The new logger to use.
         """
         self._logger = logger
+
+    def create_slack_web_client(self) -> SlackWebApiClient:
+        """Create a Slack web API client."""
+        return SlackWebApiClient(
+            http_client=self._process_context.http_client,
+            token=config.slack_token,
+            logger=self._logger,
+        )
+
+    def create_slack_message_service(self) -> SlackMessageService:
+        """Create a new Slack message handling service."""
+        return SlackMessageService(
+            logger=self._logger, slack_client=self.create_slack_web_client()
+        )

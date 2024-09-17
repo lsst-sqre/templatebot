@@ -40,8 +40,12 @@ async def handle_slack_message(
 ) -> None:
     """Handle a Slack message."""
     logger = context.logger
+    factory = context.factory
 
     logger.debug(
         "Slack message text",
         text=message.text,
     )
+
+    message_service = factory.create_slack_message_service()
+    await message_service.handle_message(message)
