@@ -6,7 +6,7 @@ import ssl
 from enum import Enum
 from pathlib import Path
 
-from pydantic import DirectoryPath, Field, FilePath, RedisDsn, SecretStr
+from pydantic import DirectoryPath, Field, FilePath, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from safir.logging import LogLevel, Profile
 
@@ -217,13 +217,6 @@ class Config(BaseSettings):
     kafka: KafkaConnectionSettings = Field(
         default_factory=KafkaConnectionSettings,
         title="Kafka connection configuration.",
-    )
-
-    redis_url: RedisDsn = Field(
-        default_factory=lambda: RedisDsn(
-            "redis://localhost:6379/0",
-        ),
-        description=("URL for the redis instance, used for caching."),
     )
 
     slack_token: SecretStr = Field(title="Slack bot token")
