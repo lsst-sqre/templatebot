@@ -169,9 +169,9 @@ def update_deps(session: nox.Session) -> None:
 @nox.session(name="run")
 def run(session: nox.Session) -> None:
     """Run the application in development mode."""
-    from testcontainers.kafka import KafkaContainer
-
     _install(session)
+
+    from testcontainers.kafka import KafkaContainer
 
     with KafkaContainer().with_kraft() as kafka:
         session.run(
