@@ -43,6 +43,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           nox-sessions: "lint typing test"
+          nox-package: "nox[uv] testcontainers[kafka]"
           use-cache: false
 
       - name: Report status

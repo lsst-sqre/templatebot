@@ -52,6 +52,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache-dependency: "requirements/*.txt"
+          nox-package: "nox[uv] testcontainers[kafka]"
           nox-sessions: "typing test"
 
   build:
