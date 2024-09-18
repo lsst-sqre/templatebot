@@ -60,9 +60,9 @@ class ConsumerContextDependency:
         # Add the Kafka context to the logger
         logger = get_logger(__name__)  # eventually use a logger dependency
         kafka_context = {
-            "topic": record.topic,
-            "offset": record.offset,
-            "partition": record.partition,
+            "topic": record.topic,  # type: ignore [union-attr]
+            "offset": record.offset,  # type: ignore [union-attr]
+            "partition": record.partition,  # type: ignore [union-attr]
         }
         logger = logger.bind(kafka=kafka_context)
 
