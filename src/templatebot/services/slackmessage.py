@@ -14,6 +14,11 @@ from templatebot.storage.slack import (
     SlackChatPostMessageRequest,
     SlackWebApiClient,
 )
+from templatebot.storage.slack.blockkit import (
+    SlackContextBlock,
+    SlackMrkdwnTextObject,
+    SlackSectionBlock,
+)
 
 MENTION_PATTERN = re.compile(r"<(@[a-zA-Z0-9]+|!subteam\^[a-zA-Z0-9]+)>")
 """Pattern for Slack mentions."""
@@ -112,8 +117,38 @@ class SlackMessageService:
     ) -> None:
         """Handle a "help" message."""
         self._logger.info("Sending help message")
+        help_summary = (
+            "Create a new GitHub repo from a template: `create project`.\\n"
+            "Create a snippet of file from a template: `create file`."
+        )
+        section_bock = SlackSectionBlock(
+            text=SlackMrkdwnTextObject(
+                text=(
+                    "• Create a GitHub repo from a template: "
+                    "```create project```\n"
+                    "• Create a file or snippet from a template: "
+                    "```create file```"
+                )
+            )
+        )
+        context_block = SlackContextBlock(
+            elements=[
+                SlackMrkdwnTextObject(
+                    text=(
+                        "Handled by <https://github.com/lsst-sqre/templatebot"
+                        "|templatebot>. The template repository is "
+                        "https://github.com/lsst/templates."
+                    )
+                )
+            ]
+        )
+        thread_ts: str | None = None
+        if hasattr(message, "thread_ts") and message.thread_ts:
+            thread_ts = message.thread_ts
         reply = SlackChatPostMessageRequest(
             channel=message.channel,
-            text="Sending help…",
+            thread_ts=thread_ts,
+            text=help_summary,
+            blocks=[section_bock, context_block],
         )
         await self._slack_client.send_chat_post_message(reply)
