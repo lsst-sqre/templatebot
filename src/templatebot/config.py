@@ -228,18 +228,9 @@ class Config(BaseSettings):
     )
 
     app_mention_topic: str = Field(
-        "squarebot.app_mention",
+        "squarebot.app.mention",
         title="app_mention Kafka topic",
         description="Kafka topic name for `app_mention` Slack events.",
-    )
-
-    message_channels_topic: str = Field(
-        "squarebot.message.channels",
-        title="message.channels Kafka topic",
-        description=(
-            "Kafka topic name for `message.channels` Slack events (messages "
-            "in public channels)."
-        ),
     )
 
     message_im_topic: str = Field(
@@ -248,24 +239,6 @@ class Config(BaseSettings):
         description=(
             "Kafka topic name for `message.im` Slack events (direct message "
             " channels)."
-        ),
-    )
-
-    message_groups_topic: str = Field(
-        "squarebot.message.groups",
-        title="message.groups Kafka topic",
-        description=(
-            "Kafka topic name for `message.groups` Slack events (messages in "
-            "private channels)."
-        ),
-    )
-
-    message_mpim_topic: str = Field(
-        "squarebot.message.mpim",
-        title="message.mpim Kafka topic",
-        description=(
-            "Kafka topic name for `message.mpim` Slack events (messages in "
-            "multi-person direct messages)."
         ),
     )
 

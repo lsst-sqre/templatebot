@@ -7,7 +7,10 @@ from typing import Annotated
 from fastapi import Depends
 from faststream.kafka.fastapi import KafkaRouter
 from faststream.security import BaseSecurity
-from rubin.squarebot.models.kafka import SquarebotSlackMessageValue
+from rubin.squarebot.models.kafka import (
+    SquarebotSlackAppMentionValue,
+    SquarebotSlackMessageValue,
+)
 from structlog import get_logger
 
 from ..config import config
@@ -28,10 +31,7 @@ kafka_router = KafkaRouter(
 
 
 @kafka_router.subscriber(
-    config.message_channels_topic,
-    config.message_groups_topic,
     config.message_im_topic,
-    config.message_mpim_topic,
     group_id=config.consumer_group_id,
 )
 async def handle_slack_message(
@@ -48,4 +48,25 @@ async def handle_slack_message(
     )
 
     message_service = factory.create_slack_message_service()
-    await message_service.handle_message(message)
+    await message_service.handle_im_message(message)
+
+
+@kafka_router.subscriber(
+    config.app_mention_topic,
+    group_id=config.consumer_group_id,
+)
+async def handle_slack_app_mention(
+    message: SquarebotSlackAppMentionValue,
+    context: Annotated[ConsumerContext, Depends(consumer_context_dependency)],
+) -> None:
+    """Handle a Slack message."""
+    logger = context.logger
+    factory = context.factory
+
+    logger.debug(
+        "Slack message text",
+        text=message.text,
+    )
+
+    message_service = factory.create_slack_message_service()
+    await message_service.handle_app_mention(message)

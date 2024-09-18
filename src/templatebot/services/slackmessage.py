@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
-from rubin.squarebot.models.kafka import SquarebotSlackMessageValue
+import re
+
+from rubin.squarebot.models.kafka import (
+    SquarebotSlackAppMentionValue,
+    SquarebotSlackMessageValue,
+)
 from structlog.stdlib import BoundLogger
 
 from templatebot.storage.slack import (
     SlackChatPostMessageRequest,
     SlackWebApiClient,
 )
+
+MENTION_PATTERN = re.compile(r"<(@[a-zA-Z0-9]+|!subteam\^[a-zA-Z0-9]+)>")
+"""Pattern for Slack mentions."""
 
 
 class SlackMessageService:
@@ -20,7 +28,7 @@ class SlackMessageService:
         self._logger = logger
         self._slack_client = slack_client
 
-    async def handle_message(
+    async def handle_im_message(
         self, message: SquarebotSlackMessageValue
     ) -> None:
         """Handle a Slack message.
@@ -34,16 +42,49 @@ class SlackMessageService:
             text=message.text,
         )
         # Process the message
-        text = message.text.lower().strip()
-        if text.startswith("create project"):
-            await self._handle_create_project(message)
-        elif text.startswith("create file"):
-            await self._handle_create_file(message)
-        elif text.startswith("help"):
-            await self._handle_help(message)
+        await self._handle_message_text(message.text, message)
+
+    async def handle_app_mention(
+        self, message: SquarebotSlackAppMentionValue
+    ) -> None:
+        """Handle a Slack app mention."""
+        self._logger.debug(
+            "Slack app mention text",
+            text=message.text,
+        )
+        # Process the message
+        await self._handle_message_text(message.text, message)
+
+    async def _handle_message_text(
+        self,
+        text: str,
+        original_message: SquarebotSlackMessageValue
+        | SquarebotSlackAppMentionValue,
+    ) -> None:
+        """Handle a message text."""
+        self._logger.debug(
+            "Slack message text",
+            text=text,
+        )
+        # Process the message
+        text = text.lower().strip()
+        if "create project" in text:
+            await self._handle_create_project(original_message)
+        elif "create file" in text:
+            await self._handle_create_file(original_message)
+        else:
+            # Strip out mentions
+            text = MENTION_PATTERN.sub("", original_message.text)
+            # normalize
+            text = " ".join(text.lower().split())
+
+            # determine if "help" is the only word
+            if text in ("help", "help!", "help?"):
+                await self._handle_help(original_message)
 
     async def _handle_create_project(
-        self, message: SquarebotSlackMessageValue
+        self,
+        message: SquarebotSlackMessageValue | SquarebotSlackAppMentionValue,
     ) -> None:
         """Handle a "create project" message."""
         self._logger.info("Creating a project")
@@ -54,7 +95,8 @@ class SlackMessageService:
         await self._slack_client.send_chat_post_message(reply)
 
     async def _handle_create_file(
-        self, message: SquarebotSlackMessageValue
+        self,
+        message: SquarebotSlackMessageValue | SquarebotSlackAppMentionValue,
     ) -> None:
         """Handle a "create file" message."""
         self._logger.info("Creating a file")
@@ -64,7 +106,10 @@ class SlackMessageService:
         )
         await self._slack_client.send_chat_post_message(reply)
 
-    async def _handle_help(self, message: SquarebotSlackMessageValue) -> None:
+    async def _handle_help(
+        self,
+        message: SquarebotSlackMessageValue | SquarebotSlackAppMentionValue,
+    ) -> None:
         """Handle a "help" message."""
         self._logger.info("Sending help message")
         reply = SlackChatPostMessageRequest(
