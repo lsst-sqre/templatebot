@@ -46,7 +46,7 @@ class SlackWebApiClient:
         """
         return await self.post_json(
             method="chat.postMessage",
-            body=message_request.model_dump(mode="json"),
+            body=message_request.model_dump(mode="json", exclude_none=True),
         )
 
     async def post_json(self, *, method: str, body: dict[str, Any]) -> dict:
