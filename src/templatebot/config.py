@@ -224,7 +224,12 @@ class Config(BaseSettings):
     slack_app_id: str = Field(title="Slack app ID")
 
     consumer_group_id: str = Field(
-        "templatebot", title="Kafka consumer group ID"
+        "templatebot",
+        title="Kafka consumer group ID",
+        description=(
+            "Each Kafka subscriber has a unique consumer group ID, which "
+            "uses this configuration as a prefix."
+        ),
     )
 
     app_mention_topic: str = Field(

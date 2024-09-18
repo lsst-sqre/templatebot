@@ -32,7 +32,7 @@ kafka_router = KafkaRouter(
 
 @kafka_router.subscriber(
     config.message_im_topic,
-    group_id=config.consumer_group_id,
+    group_id=f"{config.consumer_group_id}-im",
 )
 async def handle_slack_message(
     message: SquarebotSlackMessageValue,
@@ -53,7 +53,7 @@ async def handle_slack_message(
 
 @kafka_router.subscriber(
     config.app_mention_topic,
-    group_id=config.consumer_group_id,
+    group_id=f"{config.consumer_group_id}-app-mention",
 )
 async def handle_slack_app_mention(
     message: SquarebotSlackAppMentionValue,
