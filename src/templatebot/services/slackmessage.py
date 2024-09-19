@@ -45,7 +45,16 @@ class SlackMessageService:
         self._logger.debug(
             "Slack message text",
             text=message.text,
+            is_bot=message.is_bot,
+            username=message.user,
         )
+        self._logger.debug(
+            "Full Slack IM message",
+            body=message.model_dump(mode="json"),
+        )
+        if message.is_bot:
+            self._logger.debug("Ignoring message from bot")
+            return
         # Process the message
         await self._handle_message_text(message.text, message)
 
