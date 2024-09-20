@@ -17,7 +17,11 @@ from templatebot.storage.slack import (
 from templatebot.storage.slack.blockkit import (
     SlackContextBlock,
     SlackMrkdwnTextObject,
+    SlackOptionGroupObject,
+    SlackOptionObject,
+    SlackPlainTextObject,
     SlackSectionBlock,
+    SlackStaticSelectElement,
 )
 
 MENTION_PATTERN = re.compile(r"<(@[a-zA-Z0-9]+|!subteam\^[a-zA-Z0-9]+)>")
@@ -102,9 +106,51 @@ class SlackMessageService:
     ) -> None:
         """Handle a "create project" message."""
         self._logger.info("Creating a project")
+        select_element = SlackStaticSelectElement(
+            placeholder=SlackPlainTextObject(text="Choose a template…"),
+            action_id="templatebot_select_project_template",
+            option_groups=[
+                SlackOptionGroupObject(
+                    label=SlackPlainTextObject(text="SQuaRE"),
+                    options=[
+                        SlackOptionObject(
+                            text=SlackPlainTextObject(text="FastAPI"),
+                            value="fastapi",
+                        ),
+                        SlackOptionObject(
+                            text=SlackPlainTextObject(text="PyPI"),
+                            value="pypi",
+                        ),
+                    ],
+                ),
+                SlackOptionGroupObject(
+                    label=SlackPlainTextObject(text="Technotes"),
+                    options=[
+                        SlackOptionObject(
+                            text=SlackPlainTextObject(text="ReStructuredText"),
+                            value="rst",
+                        ),
+                        SlackOptionObject(
+                            text=SlackPlainTextObject(text="Markdown"),
+                            value="md",
+                        ),
+                    ],
+                ),
+            ],
+        )
+        select_block = SlackSectionBlock(
+            text=SlackMrkdwnTextObject(text="Let's create a project"),
+            accessory=select_element,
+        )
+
+        thread_ts: str | None = None
+        if hasattr(message, "thread_ts") and message.thread_ts:
+            thread_ts = message.thread_ts
         reply = SlackChatPostMessageRequest(
             channel=message.channel,
-            text="Creating a project…",
+            thread_ts=thread_ts,
+            text="Select a project template",
+            blocks=[select_block],
         )
         await self._slack_client.send_chat_post_message(reply)
 
