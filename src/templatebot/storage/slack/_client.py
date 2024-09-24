@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from structlog.stdlib import BoundLogger
 
 from ._models import SlackChatPostMessageRequest, SlackChatUpdateMessageRequest
+from .views import SlackModalView
 
 
 class SlackWebApiClient:
@@ -57,6 +58,18 @@ class SlackWebApiClient:
             body=message_update_request.model_dump(
                 mode="json", exclude_none=True
             ),
+        )
+
+    async def open_view(
+        self, *, trigger_id: str, view: SlackModalView
+    ) -> dict:
+        """Open a view."""
+        return await self.post_json(
+            method="views.open",
+            body={
+                "trigger_id": trigger_id,
+                "view": view.model_dump(mode="json", exclude_none=True),
+            },
         )
 
     async def post_json(self, *, method: str, body: dict[str, Any]) -> dict:

@@ -12,6 +12,12 @@ from structlog.stdlib import BoundLogger
 from templatebot.constants import SELECT_PROJECT_TEMPLATE_ACTION
 from templatebot.storage.slack import SlackWebApiClient
 from templatebot.storage.slack._models import SlackChatUpdateMessageRequest
+from templatebot.storage.slack.blockkit import (
+    SlackMrkdwnTextObject,
+    SlackPlainTextObject,
+    SlackSectionBlock,
+)
+from templatebot.storage.slack.views import SlackModalView
 
 __all__ = ["SlackBlockActionsService"]
 
@@ -70,3 +76,16 @@ class SlackBlockActionsService:
             ),
         )
         await self._slack_client.update_message(updated_messsage)
+
+        demo_block = SlackSectionBlock(
+            text=SlackMrkdwnTextObject(
+                text=f"Let's create a {selected_option.text.text} project."
+            ),
+        )
+        modal = SlackModalView(
+            title=SlackPlainTextObject(text="Set up your project"),
+            blocks=[demo_block],
+        )
+        await self._slack_client.open_view(
+            trigger_id=payload.trigger_id, view=modal
+        )
