@@ -13,9 +13,12 @@ from templatebot.constants import SELECT_PROJECT_TEMPLATE_ACTION
 from templatebot.storage.slack import SlackWebApiClient
 from templatebot.storage.slack._models import SlackChatUpdateMessageRequest
 from templatebot.storage.slack.blockkit import (
+    SlackInputBlock,
     SlackMrkdwnTextObject,
+    SlackOptionObject,
     SlackPlainTextObject,
     SlackSectionBlock,
+    SlackStaticSelectElement,
 )
 from templatebot.storage.slack.views import SlackModalView
 
@@ -82,9 +85,30 @@ class SlackBlockActionsService:
                 text=f"Let's create a {selected_option.text.text} project."
             ),
         )
+        demo_input_block = SlackInputBlock(
+            label=SlackPlainTextObject(text="License"),
+            element=SlackStaticSelectElement(
+                placeholder=SlackPlainTextObject(text="Choose a license…"),
+                action_id="select_license",
+                options=[
+                    SlackOptionObject(
+                        text=SlackPlainTextObject(text="MIT"),
+                        value="mit",
+                    ),
+                    SlackOptionObject(
+                        text=SlackPlainTextObject(text="GPLv3"),
+                        value="gplv3",
+                    ),
+                ],
+            ),
+            block_id="license",
+            hint=SlackPlainTextObject(text="MIT is preferred."),
+        )
         modal = SlackModalView(
             title=SlackPlainTextObject(text="Set up your project"),
-            blocks=[demo_block],
+            blocks=[demo_block, demo_input_block],
+            submit=SlackPlainTextObject(text="Create project"),
+            close=SlackPlainTextObject(text="Cancel"),
         )
         await self._slack_client.open_view(
             trigger_id=payload.trigger_id, view=modal

@@ -10,6 +10,7 @@ __all__ = [
     "SlackBlock",
     "SlackConfirmationDialogObject",
     "SlackContextBlock",
+    "SlackInputBlock",
     "SlackMrkdwnTextObject",
     "SlackOptionGroupObject",
     "SlackOptionObject",
@@ -125,6 +126,69 @@ class SlackContextBlock(BaseModel):
         min_length=1,
         max_length=10,
     )
+
+
+class SlackInputBlock(BaseModel):
+    """A Slack input block for collecting user input.
+
+    Reference: https://api.slack.com/reference/block-kit/blocks#input
+    """
+
+    type: Literal["input"] = Field(
+        "input",
+        description=(
+            "The type of block. Reference: "
+            "https://api.slack.com/reference/block-kit/blocks"
+        ),
+    )
+
+    block_id: Annotated[str | None, block_id_field] = None
+
+    label: SlackPlainTextObject = Field(
+        ...,
+        description=(
+            "A label that appears above an input element. "
+            "Maximum length of 2000 characters."
+        ),
+    )
+
+    element: SlackStaticSelectElement = Field(
+        ..., description="An input element."
+    )
+
+    dispatch_action: bool = Field(
+        False,
+        description=(
+            "A boolean value that indicates whether the input element "
+            "should dispatch action payloads."
+        ),
+    )
+
+    hint: SlackPlainTextObject | None = Field(
+        None,
+        description=(
+            "A plain text object that defines a plain text element that "
+            "apppears below an input element in a lighter font. "
+            "Maximum length of 2000 characters."
+        ),
+    )
+
+    optional: bool = Field(
+        False,
+        description=(
+            "A boolean value that indicates whether the input element may be "
+            "empty when a user submits the modal."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def validate_text_length(self) -> Self:
+        """Ensure that the text length is not more than 2000 characters."""
+        if len(self.label.text) > 2000:
+            raise ValueError("The length of the label text must be <= 2000.")
+        if self.hint and len(self.hint.text) > 2000:
+            raise ValueError("The length of the hint text must be <= 2000.")
+        return self
 
 
 class SlackPlainTextObject(BaseModel):
@@ -414,7 +478,7 @@ class SlackStaticSelectElement(BaseModel):
         return self
 
 
-SlackBlock = SlackSectionBlock | SlackContextBlock
+SlackBlock = SlackSectionBlock | SlackContextBlock | SlackInputBlock
 """A generic type alias for Slack Block Kit blocks."""
 
 SlackTextObjectTypes = SlackPlainTextObject | SlackMrkdwnTextObject
