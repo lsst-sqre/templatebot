@@ -7,6 +7,7 @@ from faststream.kafka.fastapi import KafkaRouter
 from faststream.security import BaseSecurity
 from rubin.squarebot.models.kafka import (
     SquarebotSlackAppMentionValue,
+    SquarebotSlackBlockActionsValue,
     SquarebotSlackMessageValue,
 )
 from structlog import get_logger
@@ -68,3 +69,20 @@ async def handle_slack_app_mention(
 
     message_service = factory.create_slack_message_service()
     await message_service.handle_app_mention(message)
+
+
+@kafka_router.subscriber(
+    config.block_actions_topic,
+    group_id=f"{config.consumer_group_id}-block-actions",
+)
+async def handle_slack_block_actions(
+    payload: SquarebotSlackBlockActionsValue,
+    context: Annotated[ConsumerContext, Depends(consumer_context_dependency)],
+) -> None:
+    """Handle a Slack block_actions interaction."""
+    logger = context.logger
+
+    logger.debug(
+        "Got Slack block_actions",
+        actions=payload.actions[0].model_dump(mode="json"),
+    )

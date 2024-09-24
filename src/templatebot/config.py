@@ -247,10 +247,12 @@ class Config(BaseSettings):
         ),
     )
 
-    interaction_topic: str = Field(
-        "squarebot.interaction",
-        title="interaction Kafka topic",
-        description=("Kafka topic name for `interaction` Slack events"),
+    block_actions_topic: str = Field(
+        "squarebot.block-actions",
+        description=(
+            "Kafka topic name for Slack block actions interaction "
+            "Slack events"
+        ),
     )
 
     model_config = SettingsConfigDict(
