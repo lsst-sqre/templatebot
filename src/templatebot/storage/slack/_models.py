@@ -8,6 +8,11 @@ from pydantic import BaseModel, Field, model_validator
 
 from .blockkit import SlackBlock
 
+__all__ = [
+    "SlackChatPostMessageRequest",
+    "SlackChatUpdateMessageRequest",
+]
+
 
 class SlackChatPostMessageRequest(BaseModel):
     """A request body for the Slack ``chat.postMessage`` method.
@@ -47,6 +52,32 @@ class SlackChatPostMessageRequest(BaseModel):
     @model_validator(mode="after")
     def validate_text_fallback(self) -> Self:
         """Ensure that the text field is provided if blocks are not."""
+        if not self.text and not self.blocks:
+            raise ValueError("Either `text` or `blocks` must be provided.")
+        return self
+
+
+class SlackChatUpdateMessageRequest(BaseModel):
+    """A request body for the Slack ``chat.update`` method.
+
+    See https://api.slack.com/methods/chat.update for more information.
+    """
+
+    channel: str = Field(
+        ..., description="The channel ID.", examples=["C1234567890"]
+    )
+
+    ts: str = Field(..., description="The timestamp of the message to update.")
+
+    text: str | None = Field(None, description="The new text of the message.")
+
+    blocks: list[SlackBlock] | None = Field(
+        None, description="The new blocks that make up the message."
+    )
+
+    @model_validator(mode="after")
+    def validate_text_or_blocks(self) -> Self:
+        """Ensure that either text or blocks are provided."""
         if not self.text and not self.blocks:
             raise ValueError("Either `text` or `blocks` must be provided.")
         return self

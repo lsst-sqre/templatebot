@@ -8,7 +8,7 @@ from httpx import AsyncClient
 from pydantic import SecretStr
 from structlog.stdlib import BoundLogger
 
-from ._models import SlackChatPostMessageRequest
+from ._models import SlackChatPostMessageRequest, SlackChatUpdateMessageRequest
 
 
 class SlackWebApiClient:
@@ -47,6 +47,16 @@ class SlackWebApiClient:
         return await self.post_json(
             method="chat.postMessage",
             body=message_request.model_dump(mode="json", exclude_none=True),
+        )
+
+    async def update_message(
+        self, message_update_request: SlackChatUpdateMessageRequest
+    ) -> dict:
+        return await self.post_json(
+            method="chat.update",
+            body=message_update_request.model_dump(
+                mode="json", exclude_none=True
+            ),
         )
 
     async def post_json(self, *, method: str, body: dict[str, Any]) -> dict:

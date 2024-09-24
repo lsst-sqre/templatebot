@@ -11,6 +11,7 @@ from structlog.stdlib import BoundLogger
 
 from templatebot.constants import SELECT_PROJECT_TEMPLATE_ACTION
 from templatebot.storage.slack import SlackWebApiClient
+from templatebot.storage.slack._models import SlackChatUpdateMessageRequest
 
 __all__ = ["SlackBlockActionsService"]
 
@@ -52,3 +53,20 @@ class SlackBlockActionsService:
             value=selected_option.value,
             text=selected_option.text.text,
         )
+
+        if not payload.channel:
+            raise ValueError("No channel in payload")
+        original_message_channel = payload.channel.id
+        if not payload.message:
+            raise ValueError("No message in payload")
+        original_message_ts = payload.message.ts
+
+        updated_messsage = SlackChatUpdateMessageRequest(
+            channel=original_message_channel,
+            ts=original_message_ts,
+            text=(
+                f"We'll create a project with the {selected_option.text.text} "
+                "template"
+            ),
+        )
+        await self._slack_client.update_message(updated_messsage)
