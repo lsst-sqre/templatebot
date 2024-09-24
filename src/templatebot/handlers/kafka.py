@@ -81,8 +81,11 @@ async def handle_slack_block_actions(
 ) -> None:
     """Handle a Slack block_actions interaction."""
     logger = context.logger
+    factory = context.factory
 
     logger.debug(
         "Got Slack block_actions",
         actions=payload.actions[0].model_dump(mode="json"),
     )
+    block_actions_service = factory.create_slack_block_actions_service()
+    await block_actions_service.handle_block_actions(payload)

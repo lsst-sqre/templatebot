@@ -10,6 +10,7 @@ from rubin.squarebot.models.kafka import (
 )
 from structlog.stdlib import BoundLogger
 
+from templatebot.constants import SELECT_PROJECT_TEMPLATE_ACTION
 from templatebot.storage.slack import (
     SlackChatPostMessageRequest,
     SlackWebApiClient,
@@ -108,7 +109,7 @@ class SlackMessageService:
         self._logger.info("Creating a project")
         select_element = SlackStaticSelectElement(
             placeholder=SlackPlainTextObject(text="Choose a template…"),
-            action_id="templatebot_select_project_template",
+            action_id=SELECT_PROJECT_TEMPLATE_ACTION,
             option_groups=[
                 SlackOptionGroupObject(
                     label=SlackPlainTextObject(text="SQuaRE"),

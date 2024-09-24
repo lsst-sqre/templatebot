@@ -6,6 +6,7 @@ from typing import Self
 from httpx import AsyncClient
 from structlog.stdlib import BoundLogger
 
+from templatebot.services.slackblockactions import SlackBlockActionsService
 from templatebot.services.slackmessage import SlackMessageService
 from templatebot.storage.slack import SlackWebApiClient
 
@@ -71,5 +72,11 @@ class Factory:
     def create_slack_message_service(self) -> SlackMessageService:
         """Create a new Slack message handling service."""
         return SlackMessageService(
+            logger=self._logger, slack_client=self.create_slack_web_client()
+        )
+
+    def create_slack_block_actions_service(self) -> SlackBlockActionsService:
+        """Create a new Slack block actions handling service."""
+        return SlackBlockActionsService(
             logger=self._logger, slack_client=self.create_slack_web_client()
         )
