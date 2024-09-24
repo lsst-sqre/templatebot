@@ -110,6 +110,12 @@ class SlackBlockActionsService:
             submit=SlackPlainTextObject(text="Create project"),
             close=SlackPlainTextObject(text="Cancel"),
         )
-        await self._slack_client.open_view(
+        response = await self._slack_client.open_view(
             trigger_id=payload.trigger_id, view=modal
         )
+        if not response["ok"]:
+            self._logger.error(
+                "Failed to open view",
+                response=response,
+                payload=payload.model_dump(mode="json"),
+            )
