@@ -255,6 +255,14 @@ class Config(BaseSettings):
         ),
     )
 
+    view_submission_topic: str = Field(
+        "squarebot.view-submission",
+        description=(
+            "Kafka topic name for Slack view submission interaction "
+            "Slack events"
+        ),
+    )
+
     model_config = SettingsConfigDict(
         env_prefix="TEMPLATEBOT_", case_sensitive=False
     )

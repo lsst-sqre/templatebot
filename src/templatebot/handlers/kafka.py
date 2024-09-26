@@ -9,6 +9,7 @@ from rubin.squarebot.models.kafka import (
     SquarebotSlackAppMentionValue,
     SquarebotSlackBlockActionsValue,
     SquarebotSlackMessageValue,
+    SquarebotSlackViewSubmissionValue,
 )
 from structlog import get_logger
 
@@ -89,3 +90,23 @@ async def handle_slack_block_actions(
     )
     block_actions_service = factory.create_slack_block_actions_service()
     await block_actions_service.handle_block_actions(payload)
+
+
+@kafka_router.subscriber(
+    config.view_submission_topic,
+    group_id=f"{config.consumer_group_id}-view-submission",
+)
+async def handle_slack_view_submission(
+    payload: SquarebotSlackViewSubmissionValue,
+    context: Annotated[ConsumerContext, Depends(consumer_context_dependency)],
+) -> None:
+    """Handle a Slack view submission interaction."""
+    logger = context.logger
+    factory = context.factory
+
+    logger.debug(
+        "Handling view submission",
+        payload=payload.model_dump(mode="json"),
+    )
+    view_service = factory.create_slack_view_service()
+    await view_service.handle_view_submission(payload)
