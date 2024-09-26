@@ -14,6 +14,7 @@ __all__ = [
     "SlackMrkdwnTextObject",
     "SlackOptionGroupObject",
     "SlackOptionObject",
+    "SlackPlainTextInputElement",
     "SlackPlainTextObject",
     "SlackSectionBlock",
     "SlackSectionBlockAccessoryTypes",
@@ -152,7 +153,7 @@ class SlackInputBlock(BaseModel):
         ),
     )
 
-    element: SlackStaticSelectElement = Field(
+    element: SlackStaticSelectElement | SlackPlainTextInputElement = Field(
         ..., description="An input element."
     )
 
@@ -474,6 +475,101 @@ class SlackStaticSelectElement(BaseModel):
         if len(self.placeholder.text) > 150:
             raise ValueError(
                 "The length of the placeholder text must be <= 150."
+            )
+        return self
+
+
+class SlackPlainTextInputElement(BaseModel):
+    """A plain text input element for Slack Block Kit.
+
+    Works with `SlackInputBlock`.
+
+    Reference: https://api.slack.com/reference/block-kit/block-elements#input
+    """
+
+    type: Literal["plain_text_input"] = Field(
+        "plain_text_input", description="The type of element."
+    )
+
+    action_id: str = Field(
+        ...,
+        description=(
+            "An identifier for the input's value when the parent modal is "
+            "submitted. This should be unique among all other action_ids used "
+            "in the containing block. Maximum length of 255 characters."
+        ),
+        max_length=255,
+    )
+
+    initial_value: str | None = Field(
+        None,
+        description=(
+            "The initial (default) value in the plain-text input when it is "
+            "loaded."
+        ),
+    )
+
+    placeholder: SlackPlainTextObject | None = Field(
+        None,
+        description=(
+            "A plain text object that defines the placeholder text shown in "
+            "the plain-text input. Maximum length of 150 characters."
+        ),
+    )
+
+    multiline: bool = Field(
+        False,
+        description=(
+            "A boolean value indicating whether the input will be a single "
+            "line (false) or a larger textarea (true)."
+        ),
+    )
+
+    min_length: int | None = Field(
+        None,
+        description=(
+            "The minimum length of input that the user must provide."
+        ),
+        ge=1,
+        le=3000,
+    )
+
+    max_length: int | None = Field(
+        None,
+        description=("The maximum length of input that the user can provide."),
+        ge=1,
+        le=3000,
+    )
+
+    focus_on_load: bool = Field(
+        False,
+        description=(
+            "A boolean value indicating whether the element should be "
+            "pre-focused when the view opens."
+        ),
+    )
+
+    # dispatch_action_config is not implemented yet.
+
+    @model_validator(mode="after")
+    def validate_text_length(self) -> Self:
+        """Ensure that the text length is not more than 150 characters."""
+        if self.placeholder and len(self.placeholder.text) > 150:
+            raise ValueError(
+                "The length of the placeholder text must be <= 150."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_min_max_length(self) -> Self:
+        """Ensure that the min_length is less than or equal to max_length."""
+        if (
+            self.min_length
+            and self.max_length
+            and self.min_length > self.max_length
+        ):
+            raise ValueError(
+                "The min_length must be less than or equal to max_length."
             )
         return self
 

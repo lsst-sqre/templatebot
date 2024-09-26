@@ -16,6 +16,7 @@ from templatebot.storage.slack.blockkit import (
     SlackInputBlock,
     SlackMrkdwnTextObject,
     SlackOptionObject,
+    SlackPlainTextInputElement,
     SlackPlainTextObject,
     SlackSectionBlock,
     SlackStaticSelectElement,
@@ -80,12 +81,12 @@ class SlackBlockActionsService:
         )
         await self._slack_client.update_message(updated_messsage)
 
-        demo_block = SlackSectionBlock(
+        demo_section = SlackSectionBlock(
             text=SlackMrkdwnTextObject(
                 text=f"Let's create a {selected_option.text.text} project."
             ),
         )
-        demo_input_block = SlackInputBlock(
+        demo_select_input = SlackInputBlock(
             label=SlackPlainTextObject(text="License"),
             element=SlackStaticSelectElement(
                 placeholder=SlackPlainTextObject(text="Choose a license…"),
@@ -104,9 +105,18 @@ class SlackBlockActionsService:
             block_id="license",
             hint=SlackPlainTextObject(text="MIT is preferred."),
         )
+        demo_text_input = SlackInputBlock(
+            label=SlackPlainTextObject(text="Project name"),
+            element=SlackPlainTextInputElement(
+                placeholder=SlackPlainTextObject(text="Enter a project name…"),
+                action_id="project_name",
+                min_length=3,
+            ),
+            block_id="project_name",
+        )
         modal = SlackModalView(
             title=SlackPlainTextObject(text="Set up your project"),
-            blocks=[demo_block, demo_input_block],
+            blocks=[demo_section, demo_select_input, demo_text_input],
             submit=SlackPlainTextObject(text="Create project"),
             close=SlackPlainTextObject(text="Cancel"),
         )
