@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import ABC
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
@@ -19,7 +20,8 @@ __all__ = [
     "SlackSectionBlock",
     "SlackSectionBlockAccessoryTypes",
     "SlackStaticSelectElement",
-    "SlackTextObjectTypes",
+    "SlackTextObjectBase",
+    "SlackTextObjectType",
 ]
 
 block_id_field = Field(
@@ -45,7 +47,7 @@ class SlackSectionBlock(BaseModel):
 
     block_id: Annotated[str | None, block_id_field] = None
 
-    text: SlackTextObjectTypes | None = Field(
+    text: SlackTextObjectType | None = Field(
         None,
         description=(
             "The text to display in the block. Not required if `fields` is "
@@ -54,7 +56,7 @@ class SlackSectionBlock(BaseModel):
     )
 
     # Fields can take other types of elements.
-    fields: list[SlackTextObjectTypes] | None = Field(
+    fields: list[SlackTextObjectType] | None = Field(
         None,
         description=(
             "An array of text objects. Each element of the array is a "
@@ -117,7 +119,7 @@ class SlackContextBlock(BaseModel):
     block_id: Annotated[str | None, block_id_field] = None
 
     # image elements can also be supported when available
-    elements: list[SlackTextObjectTypes] = Field(
+    elements: list[SlackTextObjectType] = Field(
         ...,
         description=(
             "An array of text objects. Each element of the array is a "
@@ -151,6 +153,7 @@ class SlackInputBlock(BaseModel):
             "A label that appears above an input element. "
             "Maximum length of 2000 characters."
         ),
+        max_length=2000,
     )
 
     element: SlackStaticSelectElement | SlackPlainTextInputElement = Field(
@@ -172,6 +175,7 @@ class SlackInputBlock(BaseModel):
             "apppears below an input element in a lighter font. "
             "Maximum length of 2000 characters."
         ),
+        max_length=2000,
     )
 
     optional: bool = Field(
@@ -182,17 +186,22 @@ class SlackInputBlock(BaseModel):
         ),
     )
 
-    @model_validator(mode="after")
-    def validate_text_length(self) -> Self:
-        """Ensure that the text length is not more than 2000 characters."""
-        if len(self.label.text) > 2000:
-            raise ValueError("The length of the label text must be <= 2000.")
-        if self.hint and len(self.hint.text) > 2000:
-            raise ValueError("The length of the hint text must be <= 2000.")
-        return self
+
+class SlackTextObjectBase(BaseModel, ABC):
+    """A base class for Slack Block Kit text objects."""
+
+    type: Literal["plain_text", "mrkdwn"] = Field(
+        ..., description="The type of object."
+    )
+
+    text: str = Field(..., description="The text to display.")
+
+    def __len__(self) -> int:
+        """Return the length of the text."""
+        return len(self.text)
 
 
-class SlackPlainTextObject(BaseModel):
+class SlackPlainTextObject(SlackTextObjectBase):
     """A plain_text composition object.
 
     https://api.slack.com/reference/block-kit/composition-objects#text
@@ -201,8 +210,6 @@ class SlackPlainTextObject(BaseModel):
     type: Literal["plain_text"] = Field(
         "plain_text", description="The type of object."
     )
-
-    text: str = Field(..., description="The text to display.")
 
     emoji: bool = Field(
         True,
@@ -213,7 +220,7 @@ class SlackPlainTextObject(BaseModel):
     )
 
 
-class SlackMrkdwnTextObject(BaseModel):
+class SlackMrkdwnTextObject(SlackTextObjectBase):
     """A mrkdwn text composition object.
 
     https://api.slack.com/reference/block-kit/composition-objects#text
@@ -223,8 +230,6 @@ class SlackMrkdwnTextObject(BaseModel):
         "mrkdwn", description="The type of object."
     )
 
-    text: str = Field(..., description="The text to display.")
-
     verbatim: bool = Field(
         False,
         description=(
@@ -233,6 +238,10 @@ class SlackMrkdwnTextObject(BaseModel):
             "channel names will not be auto-converted into links."
         ),
     )
+
+
+SlackTextObjectType = SlackPlainTextObject | SlackMrkdwnTextObject
+"""A type alias for Slack Block Kit text objects."""
 
 
 class SlackOptionObject(BaseModel):
@@ -250,6 +259,7 @@ class SlackOptionObject(BaseModel):
             "A plain text object that defines the text shown in the option. "
             "Maximum length of 75 characters."
         ),
+        max_length=75,
     )
 
     value: str = Field(
@@ -268,6 +278,7 @@ class SlackOptionObject(BaseModel):
             "A plain text object that defines a line of descriptive text "
             "shown below the text. Maximum length of 75 characters."
         ),
+        max_length=75,
     )
 
     url: str | None = Field(
@@ -280,15 +291,6 @@ class SlackOptionObject(BaseModel):
         ),
         max_length=3000,
     )
-
-    @model_validator(mode="after")
-    def validate_text_length(self) -> Self:
-        """Ensure that the text length is not more than 75 characters."""
-        if len(self.text.text) > 75:
-            raise ValueError("The length of the text must be <= 75.")
-        if self.description and len(self.description.text) > 75:
-            raise ValueError("The length of the description must be <= 75.")
-        return self
 
 
 class SlackOptionGroupObject(BaseModel):
@@ -305,6 +307,7 @@ class SlackOptionGroupObject(BaseModel):
             "A plain text object that defines the label shown above this "
             "group of options. Maximum length of 75 characters."
         ),
+        max_length=75,
     )
 
     options: list[SlackOptionObject] = Field(
@@ -315,13 +318,6 @@ class SlackOptionGroupObject(BaseModel):
         min_length=1,
         max_length=100,
     )
-
-    @model_validator(mode="after")
-    def validate_text_length(self) -> Self:
-        """Ensure that the text length is not more than 75 characters."""
-        if len(self.label.text) > 75:
-            raise ValueError("The length of the label text must be <= 75.")
-        return self
 
 
 class SlackConfirmationDialogObject(BaseModel):
@@ -336,6 +332,7 @@ class SlackConfirmationDialogObject(BaseModel):
             "A plain text object that defines the dialog's title. Maximum "
             "length of 100 characters."
         ),
+        max_length=100,
     )
 
     text: SlackPlainTextObject = Field(
@@ -344,6 +341,7 @@ class SlackConfirmationDialogObject(BaseModel):
             "A text object that defines the explanatory text that appears in "
             "the confirm dialog. Maximum length of 300 characters."
         ),
+        max_length=300,
     )
 
     confirm: SlackPlainTextObject = Field(
@@ -352,6 +350,7 @@ class SlackConfirmationDialogObject(BaseModel):
             "A plain text object that defines the text of the button that "
             "confirms the action. Maximum length of 30 characters."
         ),
+        max_length=30,
     )
 
     deny: SlackPlainTextObject = Field(
@@ -360,6 +359,7 @@ class SlackConfirmationDialogObject(BaseModel):
             "A plain text object that defines the text of the button that "
             "denies the action. Maximum length of 30 characters."
         ),
+        max_length=30,
     )
 
     style: Literal["primary", "danger"] = Field(
@@ -369,19 +369,6 @@ class SlackConfirmationDialogObject(BaseModel):
             "Options include `primary` and `danger`."
         ),
     )
-
-    @model_validator(mode="after")
-    def validate_text_length(self) -> Self:
-        """Ensure that the text length is not more than 300 characters."""
-        if len(self.title.text) > 100:
-            raise ValueError("The length of the title text must be <= 100.")
-        if len(self.text.text) > 300:
-            raise ValueError("The length of the text must be <= 300.")
-        if len(self.confirm.text) > 300:
-            raise ValueError("The length of the confirm text must be <= 30.")
-        if len(self.deny.text) > 300:
-            raise ValueError("The length of the deny text must be <= 30.")
-        return self
 
 
 class SlackStaticSelectElement(BaseModel):
@@ -404,6 +391,7 @@ class SlackStaticSelectElement(BaseModel):
             "A plain text object that defines the placeholder text shown on "
             "the static select element. Maximum length of 150 characters."
         ),
+        max_length=150,
     )
 
     options: list[SlackOptionObject] | None = Field(
@@ -469,15 +457,6 @@ class SlackStaticSelectElement(BaseModel):
             )
         return self
 
-    @model_validator(mode="after")
-    def validate_text_length(self) -> Self:
-        """Ensure that the text length is not more than 150 characters."""
-        if len(self.placeholder.text) > 150:
-            raise ValueError(
-                "The length of the placeholder text must be <= 150."
-            )
-        return self
-
 
 class SlackPlainTextInputElement(BaseModel):
     """A plain text input element for Slack Block Kit.
@@ -515,6 +494,7 @@ class SlackPlainTextInputElement(BaseModel):
             "A plain text object that defines the placeholder text shown in "
             "the plain-text input. Maximum length of 150 characters."
         ),
+        max_length=150,
     )
 
     multiline: bool = Field(
@@ -552,15 +532,6 @@ class SlackPlainTextInputElement(BaseModel):
     # dispatch_action_config is not implemented yet.
 
     @model_validator(mode="after")
-    def validate_text_length(self) -> Self:
-        """Ensure that the text length is not more than 150 characters."""
-        if self.placeholder and len(self.placeholder.text) > 150:
-            raise ValueError(
-                "The length of the placeholder text must be <= 150."
-            )
-        return self
-
-    @model_validator(mode="after")
     def validate_min_max_length(self) -> Self:
         """Ensure that the min_length is less than or equal to max_length."""
         if (
@@ -576,9 +547,6 @@ class SlackPlainTextInputElement(BaseModel):
 
 SlackBlock = SlackSectionBlock | SlackContextBlock | SlackInputBlock
 """A generic type alias for Slack Block Kit blocks."""
-
-SlackTextObjectTypes = SlackPlainTextObject | SlackMrkdwnTextObject
-"""A type alias for Slack Block Kit text objects."""
 
 SlackSectionBlockAccessoryTypes = SlackStaticSelectElement
 """A type alias for Slack Block Kit section block accessory types."""
