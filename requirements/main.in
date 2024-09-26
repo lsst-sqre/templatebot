@@ -17,7 +17,7 @@ pydantic
 pydantic-settings
 safir[redis]>=5
 faststream[kafka]
-rubin-squarebot==0.10.0a2
+rubin-squarebot>=0.10.0
 templatekit
 GitPython
 cachetools
