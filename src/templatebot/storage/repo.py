@@ -31,7 +31,7 @@ class RepoManager:
         self._logger = logger
         self._url = url
         self._cache_dir = cache_dir
-        self._cache_dir.mkdir(exist_ok=True)
+        self._cache_dir.mkdir(exist_ok=True, parents=True)
 
         # keys are SHAs, values are repo paths
         self._clones: dict[str, Path] = {}

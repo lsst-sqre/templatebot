@@ -6,7 +6,7 @@ import ssl
 from enum import Enum
 from pathlib import Path
 
-from pydantic import DirectoryPath, Field, FilePath, SecretStr
+from pydantic import DirectoryPath, Field, FilePath, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from safir.logging import LogLevel, Profile
 
@@ -222,6 +222,14 @@ class Config(BaseSettings):
     slack_token: SecretStr = Field(title="Slack bot token")
 
     slack_app_id: str = Field(title="Slack app ID")
+
+    template_repo_url: HttpUrl = Field(
+        description="URL of the template repository"
+    )
+
+    template_cache_dir: Path = Field(
+        description="Directory where template repositories are cloned.",
+    )
 
     consumer_group_id: str = Field(
         "templatebot",

@@ -34,6 +34,8 @@ def _make_env_vars(overrides: dict[str, str] | None = None) -> dict[str, str]:
         "TEMPLATEBOT_ENVIRONMENT_URL": "http://example.com/",
         "TEMPLATEBOT_SLACK_TOKEN": "xoxb-testing-123",
         "TEMPLATEBOT_SLACK_APP_ID": "A123456",
+        "TEMPLATEBOT_TEMPLATE_REPO_URL": "https://github.com/lsst/templates",
+        "TEMPLATEBOT_TEMPLATE_CACHE_DIR": ".tmp/template_cache",
     }
     if overrides:
         env_vars.update(overrides)

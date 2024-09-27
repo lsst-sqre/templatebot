@@ -3,12 +3,14 @@
 from dataclasses import dataclass
 from typing import Self
 
+import structlog
 from httpx import AsyncClient
 from structlog.stdlib import BoundLogger
 
 from templatebot.services.slackblockactions import SlackBlockActionsService
 from templatebot.services.slackmessage import SlackMessageService
 from templatebot.services.slackview import SlackViewService
+from templatebot.storage.repo import RepoManager
 from templatebot.storage.slack import SlackWebApiClient
 
 from .config import config
@@ -25,12 +27,22 @@ class ProcessContext:
     http_client: AsyncClient
     """Shared HTTP client."""
 
+    repo_manager: RepoManager
+    """Template repository manager. This maintains an on-disk cache of
+    template repository clones.
+    """
+
     @classmethod
     async def create(cls) -> Self:
         """Create a new process context."""
         http_client = AsyncClient()
+        repo_manager = RepoManager(
+            url=str(config.template_repo_url),
+            cache_dir=config.template_cache_dir,
+            logger=structlog.get_logger(__name__),
+        )
 
-        return cls(http_client=http_client)
+        return cls(http_client=http_client, repo_manager=repo_manager)
 
     async def aclose(self) -> None:
         """Close any resources held by the context."""
