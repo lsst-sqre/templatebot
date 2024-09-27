@@ -291,9 +291,9 @@ fast-depends==2.4.11 \
     --hash=sha256:29c8022232d1f67408d41fc251d2756c74ba98298e0502454de9f42df99a2ab0 \
     --hash=sha256:f361d6b6375184a800e93ecaf874a5ebc9905fe4f5fafecc50de2c81acf850d8
     # via faststream
-fastapi==0.115.0 \
-    --hash=sha256:17ea427674467486e997206a5ab25760f6b09e069f099b96f5b55a32fb6f1631 \
-    --hash=sha256:f93b4ca3529a8ebc6fc3fcf710e5efa8de3df9b41570958abf1d97d843138004
+fastapi==0.112.1 \
+    --hash=sha256:b2537146f8c23389a7faa8b03d0bd38d4986e6983874557d95eed2acc46448ef \
+    --hash=sha256:bcbd45817fc2a1cd5da09af66815b84ec0d3d634eb173d1ab468ae3103e183e4
     # via
     #   -r requirements/main.in
     #   safir
@@ -650,9 +650,9 @@ pyyaml==6.0.2 \
     #   cookiecutter
     #   templatekit
     #   uvicorn
-redis==5.0.8 \
-    --hash=sha256:0c5b10d387568dfe0698c6fad6615750c24170e548ca2deac10c649d463e9870 \
-    --hash=sha256:56134ee08ea909106090934adc36f65c9bcbbaecea5b21ba704ba6fb561f8eb4
+redis==5.1.0 \
+    --hash=sha256:b756df1e4a3858fcc0ef861f3fc53623a96c41e2b1f5304e09e0fe758d333d40 \
+    --hash=sha256:fd4fccba0d7f6aa48c58a78d76ddb4afc698f5da4a2c1d03d916e4fd7ab88cdd
     # via safir
 requests==2.32.3 \
     --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 \

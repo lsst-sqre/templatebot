@@ -8,7 +8,7 @@
 #     make update-deps
 
 # These dependencies are for fastapi including some optional features.
-fastapi
+fastapi<0.112.2 # https://github.com/airtai/faststream/issues/1742#issuecomment-2320630668
 starlette
 uvicorn[standard]
 
