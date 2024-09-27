@@ -10,6 +10,7 @@ from structlog.stdlib import BoundLogger
 from templatebot.services.slackblockactions import SlackBlockActionsService
 from templatebot.services.slackmessage import SlackMessageService
 from templatebot.services.slackview import SlackViewService
+from templatebot.services.templaterepo import TemplateRepoService
 from templatebot.storage.repo import RepoManager
 from templatebot.storage.slack import SlackWebApiClient
 
@@ -98,4 +99,12 @@ class Factory:
         """Create a new Slack view handling service."""
         return SlackViewService(
             logger=self._logger, slack_client=self.create_slack_web_client()
+        )
+
+    def create_template_repo_service(self) -> TemplateRepoService:
+        """Create a new template repository service."""
+        return TemplateRepoService(
+            logger=self._logger,
+            repo_manager=self._process_context.repo_manager,
+            slack_client=self.create_slack_web_client(),
         )
