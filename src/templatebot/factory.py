@@ -86,7 +86,9 @@ class Factory:
     def create_slack_message_service(self) -> SlackMessageService:
         """Create a new Slack message handling service."""
         return SlackMessageService(
-            logger=self._logger, slack_client=self.create_slack_web_client()
+            logger=self._logger,
+            slack_client=self.create_slack_web_client(),
+            template_repo_service=self.create_template_repo_service(),
         )
 
     def create_slack_block_actions_service(self) -> SlackBlockActionsService:

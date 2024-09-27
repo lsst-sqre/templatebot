@@ -10,7 +10,6 @@ from rubin.squarebot.models.kafka import (
 )
 from structlog.stdlib import BoundLogger
 
-from templatebot.constants import SELECT_PROJECT_TEMPLATE_ACTION
 from templatebot.storage.slack import (
     SlackChatPostMessageRequest,
     SlackWebApiClient,
@@ -18,12 +17,10 @@ from templatebot.storage.slack import (
 from templatebot.storage.slack.blockkit import (
     SlackContextBlock,
     SlackMrkdwnTextObject,
-    SlackOptionGroupObject,
-    SlackOptionObject,
-    SlackPlainTextObject,
     SlackSectionBlock,
-    SlackStaticSelectElement,
 )
+
+from .templaterepo import TemplateRepoService
 
 MENTION_PATTERN = re.compile(r"<(@[a-zA-Z0-9]+|!subteam\^[a-zA-Z0-9]+)>")
 """Pattern for Slack mentions."""
@@ -33,10 +30,14 @@ class SlackMessageService:
     """A service for processing Slack messages."""
 
     def __init__(
-        self, logger: BoundLogger, slack_client: SlackWebApiClient
+        self,
+        logger: BoundLogger,
+        slack_client: SlackWebApiClient,
+        template_repo_service: TemplateRepoService,
     ) -> None:
         self._logger = logger
         self._slack_client = slack_client
+        self._template_repo_service = template_repo_service
 
     async def handle_im_message(
         self, message: SquarebotSlackMessageValue
@@ -107,53 +108,22 @@ class SlackMessageService:
     ) -> None:
         """Handle a "create project" message."""
         self._logger.info("Creating a project")
-        select_element = SlackStaticSelectElement(
-            placeholder=SlackPlainTextObject(text="Choose a template…"),
-            action_id=SELECT_PROJECT_TEMPLATE_ACTION,
-            option_groups=[
-                SlackOptionGroupObject(
-                    label=SlackPlainTextObject(text="SQuaRE"),
-                    options=[
-                        SlackOptionObject(
-                            text=SlackPlainTextObject(text="FastAPI"),
-                            value="fastapi",
-                        ),
-                        SlackOptionObject(
-                            text=SlackPlainTextObject(text="PyPI"),
-                            value="pypi",
-                        ),
-                    ],
-                ),
-                SlackOptionGroupObject(
-                    label=SlackPlainTextObject(text="Technotes"),
-                    options=[
-                        SlackOptionObject(
-                            text=SlackPlainTextObject(text="ReStructuredText"),
-                            value="rst",
-                        ),
-                        SlackOptionObject(
-                            text=SlackPlainTextObject(text="Markdown"),
-                            value="md",
-                        ),
-                    ],
-                ),
-            ],
-        )
-        select_block = SlackSectionBlock(
-            text=SlackMrkdwnTextObject(text="Let's create a project"),
-            accessory=select_element,
-        )
-
         thread_ts: str | None = None
         if hasattr(message, "thread_ts") and message.thread_ts:
             thread_ts = message.thread_ts
-        reply = SlackChatPostMessageRequest(
-            channel=message.channel,
-            thread_ts=thread_ts,
-            text="Select a project template",
-            blocks=[select_block],
+
+        if not message.user:
+            self._logger.warning(
+                "Project creation is being requested via a message that "
+                "doesn't have a user ID",
+                message=message.model_dump(mode="json"),
+            )
+            return
+        await self._template_repo_service.handle_project_template_selection(
+            user_id=message.user,
+            channel_id=message.channel,
+            parent_ts=thread_ts if isinstance(thread_ts, str) else None,
         )
-        await self._slack_client.send_chat_post_message(reply)
 
     async def _handle_create_file(
         self,
@@ -161,11 +131,21 @@ class SlackMessageService:
     ) -> None:
         """Handle a "create file" message."""
         self._logger.info("Creating a file")
-        reply = SlackChatPostMessageRequest(
-            channel=message.channel,
-            text="Creating a file…",
+        thread_ts: str | None = None
+        if hasattr(message, "thread_ts") and message.thread_ts:
+            thread_ts = message.thread_ts
+        if not message.user:
+            self._logger.warning(
+                "File creation is being requested via a message that "
+                "doesn't have a user ID",
+                message=message.model_dump(mode="json"),
+            )
+            return
+        await self._template_repo_service.handle_file_template_selection(
+            user_id=message.user,
+            channel_id=message.channel,
+            parent_ts=thread_ts if isinstance(thread_ts, str) else None,
         )
-        await self._slack_client.send_chat_post_message(reply)
 
     async def _handle_help(
         self,
