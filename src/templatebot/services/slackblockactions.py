@@ -8,20 +8,16 @@ from rubin.squarebot.models.slack import (
     SlackStaticSelectAction,
 )
 from structlog.stdlib import BoundLogger
+from templatekit.repo import FileTemplate, ProjectTemplate
 
-from templatebot.constants import SELECT_PROJECT_TEMPLATE_ACTION
-from templatebot.storage.slack import SlackWebApiClient
-from templatebot.storage.slack._models import SlackChatUpdateMessageRequest
-from templatebot.storage.slack.blockkit import (
-    SlackInputBlock,
-    SlackMrkdwnTextObject,
-    SlackOptionObject,
-    SlackPlainTextInputElement,
-    SlackPlainTextObject,
-    SlackSectionBlock,
-    SlackStaticSelectElement,
+from templatebot.config import config
+from templatebot.constants import (
+    SELECT_FILE_TEMPLATE_ACTION,
+    SELECT_PROJECT_TEMPLATE_ACTION,
 )
-from templatebot.storage.slack.views import SlackModalView
+from templatebot.services.template import TemplateService
+from templatebot.storage.repo import RepoManager
+from templatebot.storage.slack import SlackWebApiClient
 
 __all__ = ["SlackBlockActionsService"]
 
@@ -30,10 +26,16 @@ class SlackBlockActionsService:
     """A service for processing Slack block actions."""
 
     def __init__(
-        self, logger: BoundLogger, slack_client: SlackWebApiClient
+        self,
+        logger: BoundLogger,
+        slack_client: SlackWebApiClient,
+        template_service: TemplateService,
+        repo_manager: RepoManager,
     ) -> None:
         self._logger = logger
         self._slack_client = slack_client
+        self._template_service = template_service
+        self._repo_manager = repo_manager
 
     async def handle_block_actions(
         self, payload: SquarebotSlackBlockActionsValue
@@ -42,6 +44,10 @@ class SlackBlockActionsService:
         for action in payload.actions:
             if action.action_id == SELECT_PROJECT_TEMPLATE_ACTION:
                 await self.handle_project_template_selection(
+                    action=action, payload=payload
+                )
+            elif action.action_id == SELECT_FILE_TEMPLATE_ACTION:
+                await self.handle_file_template_selection(
                     action=action, payload=payload
                 )
 
@@ -71,61 +77,70 @@ class SlackBlockActionsService:
             raise ValueError("No message in payload")
         original_message_ts = payload.message.ts
 
-        updated_messsage = SlackChatUpdateMessageRequest(
-            channel=original_message_channel,
-            ts=original_message_ts,
-            text=(
-                f"We'll create a project with the {selected_option.text.text} "
-                "template"
-            ),
-        )
-        await self._slack_client.update_message(updated_messsage)
+        git_ref = "main"
 
-        demo_section = SlackSectionBlock(
-            text=SlackMrkdwnTextObject(
-                text=f"Let's create a {selected_option.text.text} project."
-            ),
-        )
-        demo_select_input = SlackInputBlock(
-            label=SlackPlainTextObject(text="License"),
-            element=SlackStaticSelectElement(
-                placeholder=SlackPlainTextObject(text="Choose a license…"),
-                action_id="select_license",
-                options=[
-                    SlackOptionObject(
-                        text=SlackPlainTextObject(text="MIT"),
-                        value="mit",
-                    ),
-                    SlackOptionObject(
-                        text=SlackPlainTextObject(text="GPLv3"),
-                        value="gplv3",
-                    ),
-                ],
-            ),
-            block_id="license",
-            hint=SlackPlainTextObject(text="MIT is preferred."),
-        )
-        demo_text_input = SlackInputBlock(
-            label=SlackPlainTextObject(text="Project name"),
-            element=SlackPlainTextInputElement(
-                placeholder=SlackPlainTextObject(text="Enter a project name…"),
-                action_id="project_name",
-                min_length=3,
-            ),
-            block_id="project_name",
-        )
-        modal = SlackModalView(
-            title=SlackPlainTextObject(text="Set up your project"),
-            blocks=[demo_section, demo_select_input, demo_text_input],
-            submit=SlackPlainTextObject(text="Create project"),
-            close=SlackPlainTextObject(text="Cancel"),
-        )
-        response = await self._slack_client.open_view(
-            trigger_id=payload.trigger_id, view=modal
-        )
-        if not response["ok"]:
-            self._logger.error(
-                "Failed to open view",
-                response=response,
-                payload=payload.model_dump(mode="json"),
+        template = self._repo_manager.get_repo(gitref=git_ref)[
+            selected_option.value
+        ]
+        if not isinstance(template, ProjectTemplate):
+            raise TypeError(
+                f"Expected {selected_option.value} template to be a "
+                f"ProjectTemplate, but got {type(template)}"
             )
+
+        await self._template_service.show_project_template_modal(
+            user_id=payload.user.id,
+            trigger_id=payload.trigger_id,
+            message_ts=original_message_ts,
+            channel_id=original_message_channel,
+            template=template,
+            git_ref=git_ref,
+            repo_url=str(config.template_repo_url),
+        )
+
+    async def handle_file_template_selection(
+        self,
+        *,
+        action: SlackBlockActionBase,
+        payload: SquarebotSlackBlockActionsValue,
+    ) -> None:
+        """Handle a file template selection."""
+        if not isinstance(action, SlackStaticSelectAction):
+            raise TypeError(
+                f"Expected action for {SELECT_FILE_TEMPLATE_ACTION} to be "
+                f"a SlackStaticSelectAction, but got {type(action)}"
+            )
+        selected_option = action.selected_option
+        self._logger.debug(
+            "Selected file template",
+            value=selected_option.value,
+            text=selected_option.text.text,
+        )
+
+        if not payload.channel:
+            raise ValueError("No channel in payload")
+        original_message_channel = payload.channel.id
+        if not payload.message:
+            raise ValueError("No message in payload")
+        original_message_ts = payload.message.ts
+
+        git_ref = "main"
+
+        template = self._repo_manager.get_repo(gitref=git_ref)[
+            selected_option.value
+        ]
+        if not isinstance(template, FileTemplate):
+            raise TypeError(
+                f"Expected {selected_option.value} template to be a "
+                f"ProjectTemplate, but got {type(template)}"
+            )
+
+        await self._template_service.show_file_template_modal(
+            user_id=payload.user.id,
+            trigger_id=payload.trigger_id,
+            message_ts=original_message_ts,
+            channel_id=original_message_channel,
+            template=template,
+            git_ref=git_ref,
+            repo_url=str(config.template_repo_url),
+        )
