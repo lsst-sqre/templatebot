@@ -392,6 +392,7 @@ class SlackStaticSelectElement(BaseModel):
             "the static select element. Maximum length of 150 characters."
         ),
         max_length=150,
+        min_length=1,
     )
 
     options: list[SlackOptionObject] | None = Field(
@@ -495,6 +496,7 @@ class SlackPlainTextInputElement(BaseModel):
             "the plain-text input. Maximum length of 150 characters."
         ),
         max_length=150,
+        min_length=1,
     )
 
     multiline: bool = Field(
