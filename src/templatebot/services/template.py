@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from httpx import AsyncClient
 from structlog.stdlib import BoundLogger
 from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
+from templatebot.storage.authordb import AuthorDb
 from templatebot.storage.slack import (
     SlackChatUpdateMessageRequest,
     SlackWebApiClient,
@@ -29,9 +31,14 @@ class TemplateService:
     """
 
     def __init__(
-        self, *, logger: BoundLogger, slack_client: SlackWebApiClient
+        self,
+        *,
+        logger: BoundLogger,
+        http_client: AsyncClient,
+        slack_client: SlackWebApiClient,
     ) -> None:
         self._logger = logger
+        self._http_client = http_client
         self._slack_client = slack_client
 
     async def show_file_template_modal(
@@ -138,6 +145,8 @@ class TemplateService:
         template_values = self._transform_modal_values(
             template=template, modal_values=modal_values
         )
+        await self._expand_author_id_variable(template_values)
+
         # Create a Markdown code block showing the template variable names
         # and the assigned values
         assignment_lines = [
@@ -235,3 +244,30 @@ class TemplateService:
                         continue
 
         return data
+
+    async def _expand_author_id_variable(
+        self, template_values: dict[str, str]
+    ) -> None:
+        """Expand the author_id variable into full author information
+        from lsst-texmf's authordb.yaml.
+        """
+        author_id = template_values.get("author_id")
+        if not author_id:
+            return
+
+        authordb = await AuthorDb.download(self._http_client)
+        # TODO(jonathansick): handle missing author_id with Slack message
+        author_info = authordb.get_author(author_id)
+
+        template_values["first_author_given"] = author_info.given_name
+        template_values["first_author_family"] = author_info.family_name
+        template_values["first_author_orcid"] = author_info.orcid
+        template_values["first_author_affil_name"] = (
+            author_info.affiliation_name
+        )
+        template_values["first_author_affil_internal_id"] = (
+            author_info.affiliation_id
+        )
+        template_values["first_author_affil_address"] = (
+            author_info.affiliation_address
+        )

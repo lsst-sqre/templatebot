@@ -121,5 +121,7 @@ class Factory:
     def create_template_service(self) -> TemplateService:
         """Create a new template service."""
         return TemplateService(
-            logger=self._logger, slack_client=self.create_slack_web_client()
+            logger=self._logger,
+            slack_client=self.create_slack_web_client(),
+            http_client=self._process_context.http_client,
         )
