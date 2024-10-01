@@ -219,6 +219,18 @@ class Config(BaseSettings):
         title="Kafka connection configuration.",
     )
 
+    github_app_id: int = Field(
+        ...,
+        description=(
+            "The GitHub App ID, as determined by GitHub when setting up a "
+            "GitHub App."
+        ),
+    )
+
+    github_app_private_key: SecretStr = Field(
+        ..., description="The GitHub app private key."
+    )
+
     slack_token: SecretStr = Field(title="Slack bot token")
 
     slack_app_id: str = Field(title="Slack app ID")

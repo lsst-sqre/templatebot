@@ -12,6 +12,7 @@ from templatebot.services.slackmessage import SlackMessageService
 from templatebot.services.slackview import SlackViewService
 from templatebot.services.template import TemplateService
 from templatebot.services.templaterepo import TemplateRepoService
+from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
 from templatebot.storage.repo import RepoManager
 from templatebot.storage.slack import SlackWebApiClient
 
@@ -82,6 +83,15 @@ class Factory:
             http_client=self._process_context.http_client,
             token=config.slack_token,
             logger=self._logger,
+        )
+
+    def create_github_client_factory(self) -> GitHubAppClientFactory:
+        """Create a new GitHub client factory."""
+        return GitHubAppClientFactory(
+            id=config.github_app_id,
+            key=config.github_app_private_key.get_secret_value(),
+            name="templatebot",
+            http_client=self._process_context.http_client,
         )
 
     def create_slack_message_service(self) -> SlackMessageService:
