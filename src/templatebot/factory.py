@@ -104,7 +104,10 @@ class Factory:
     def create_slack_view_service(self) -> SlackViewService:
         """Create a new Slack view handling service."""
         return SlackViewService(
-            logger=self._logger, slack_client=self.create_slack_web_client()
+            logger=self._logger,
+            slack_client=self.create_slack_web_client(),
+            repo_manager=self._process_context.repo_manager,
+            template_service=self.create_template_service(),
         )
 
     def create_template_repo_service(self) -> TemplateRepoService:

@@ -120,3 +120,46 @@ class TemplateService:
                 ),
             )
         )
+
+    async def create_project_from_template(
+        self,
+        *,
+        template: ProjectTemplate,
+        modal_values: dict[str, str],
+        trigger_message_ts: str | None,
+        trigger_channel_id: str | None,
+    ) -> None:
+        """Create a GitHub repository and set up a project from a template."""
+        # TODO(jonathansick): implement this
+        if trigger_channel_id and trigger_message_ts:
+            await self._slack_client.update_message(
+                message_update_request=SlackChatUpdateMessageRequest(
+                    channel=trigger_channel_id,
+                    ts=trigger_message_ts,
+                    text=(
+                        f"Creating a project from the {template.name} "
+                        "template."
+                    ),
+                )
+            )
+
+    async def create_file_from_template(
+        self,
+        *,
+        template: FileTemplate,
+        modal_values: dict[str, str],
+        trigger_message_ts: str | None,
+        trigger_channel_id: str | None,
+    ) -> None:
+        """Create a file from a template."""
+        # TODO(jonathansick): implement this
+        if trigger_channel_id and trigger_message_ts:
+            await self._slack_client.update_message(
+                message_update_request=SlackChatUpdateMessageRequest(
+                    channel=trigger_channel_id,
+                    ts=trigger_message_ts,
+                    text=(
+                        f"Creating a file from the {template.name} template."
+                    ),
+                )
+            )
