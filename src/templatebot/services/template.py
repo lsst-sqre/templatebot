@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import re
+
 from httpx import AsyncClient
 from structlog.stdlib import BoundLogger
 from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
 from templatebot.storage.authordb import AuthorDb
+from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
 from templatebot.storage.slack import (
     SlackChatUpdateMessageRequest,
     SlackWebApiClient,
@@ -36,10 +39,12 @@ class TemplateService:
         logger: BoundLogger,
         http_client: AsyncClient,
         slack_client: SlackWebApiClient,
+        github_client_factory: GitHubAppClientFactory,
     ) -> None:
         self._logger = logger
         self._http_client = http_client
         self._slack_client = slack_client
+        self._github_client_factory = github_client_factory
 
     async def show_file_template_modal(
         self,
@@ -141,11 +146,21 @@ class TemplateService:
         trigger_channel_id: str | None,
     ) -> None:
         """Create a GitHub repository and set up a project from a template."""
-        # TODO(jonathansick): implement this
+        # Preprocessing steps. First convert values from the Slack modal into
+        # cookiecutter template variables. This expands the templatekit
+        # preset_groups and preset_options into the full set of template
+        # variables.
         template_values = self._transform_modal_values(
             template=template, modal_values=modal_values
         )
+
+        # Expand the author_id variable into full author information, if
+        # present.
         await self._expand_author_id_variable(template_values)
+
+        # Handle repository/serial number assignment for technotes
+        if template.name.startswith("technote_"):
+            await self._assign_technote_repo_serial(template_values)
 
         # Create a Markdown code block showing the template variable names
         # and the assigned values
@@ -271,3 +286,74 @@ class TemplateService:
         template_values["first_author_affil_address"] = (
             author_info.affiliation_address
         )
+
+    async def _assign_technote_repo_serial(
+        self, template_values: dict[str, str]
+    ) -> None:
+        """Assign a repository serial number for a technote."""
+        org_name = template_values["github_org"]
+        series = template_values["series"].lower()
+
+        series_pattern = re.compile(r"^" + series + r"-(?P<number>\d+)$")
+
+        # Get repository names from GitHub for this org
+        f = self._github_client_factory
+        ghclient = await f.create_installation_client_for_org(org_name)
+        repo_iter = ghclient.getiter(
+            "/orgs{/org}/repos", url_vars={"org": org_name}
+        )
+        series_numbers = []
+        async for repo_info in repo_iter:
+            name = repo_info["name"].lower()
+            m = series_pattern.match(name)
+            if m is None:
+                continue
+            series_numbers.append(int(m.group("number")))
+
+        self._logger.debug(
+            "Collected existing numbers for series, series_numbers",
+            series=series,
+            series_numbers=series_numbers,
+        )
+
+        new_number = self._propose_number([int(n) for n in series_numbers])
+        serial_number = f"{new_number:03d}"
+        repo_name = f"{series.lower()}-{serial_number}"
+
+        self._logger.info(
+            "Selected new technote repo name", name=repo_name, org=org_name
+        )
+
+        # Update the template values. This relies on all technotes having
+        # the same variables structure.
+        template_values["serial_number"] = serial_number
+
+    def _propose_number(self, series_numbers: list[int]) -> int:
+        """Propose a technote number given the list of available document
+        numbers.
+
+        This algorithm starts from 1, increments numbers by 1, and will fill in
+        any gaps in the numbering scheme.
+        """
+        series_numbers.sort()
+
+        n_documents = len(series_numbers)
+
+        if n_documents == 0:
+            return 1
+
+        for i in range(n_documents):
+            serial_number = series_numbers[i]
+
+            if i == 0 and serial_number > 1:
+                return 1
+
+            if i + 1 == n_documents:
+                # it might be the next-highest number
+                return series_numbers[i] + 1
+
+            # check if the next number is missing
+            if series_numbers[i + 1] != serial_number + 1:
+                return serial_number + 1
+
+        raise RuntimeError("propose_number should not be in this state.")

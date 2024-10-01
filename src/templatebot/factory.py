@@ -134,4 +134,5 @@ class Factory:
             logger=self._logger,
             slack_client=self.create_slack_web_client(),
             http_client=self._process_context.http_client,
+            github_client_factory=self.create_github_client_factory(),
         )
