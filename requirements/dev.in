@@ -9,6 +9,9 @@
 
 -c main.txt
 
+# Type stubs
+types-PyYAML
+
 # Testing
 asgi-lifespan
 coverage[toml]
