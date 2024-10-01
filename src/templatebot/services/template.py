@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from structlog.stdlib import BoundLogger
-from templatekit.repo import FileTemplate, ProjectTemplate
+from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
 from templatebot.storage.slack import (
     SlackChatUpdateMessageRequest,
     SlackWebApiClient,
+)
+from templatebot.storage.slack.blockkit import (
+    SlackMrkdwnTextObject,
+    SlackSectionBlock,
 )
 from templatebot.storage.slack.variablesmodal import TemplateVariablesModal
 
@@ -131,6 +135,27 @@ class TemplateService:
     ) -> None:
         """Create a GitHub repository and set up a project from a template."""
         # TODO(jonathansick): implement this
+        template_values = self._transform_modal_values(
+            template=template, modal_values=modal_values
+        )
+        # Create a Markdown code block showing the template variable names
+        # and the assigned values
+        assignment_lines = [
+            f"- `{key}` = `{value}`" for key, value in template_values.items()
+        ]
+        text_block = SlackSectionBlock(
+            fields=[
+                SlackMrkdwnTextObject(
+                    text=(
+                        f"Creating a project from the {template.name} "
+                        "template."
+                    )
+                ),
+                SlackMrkdwnTextObject(
+                    text=f"Template values:\n\n{'\n'.join(assignment_lines)}"
+                ),
+            ]
+        )
         if trigger_channel_id and trigger_message_ts:
             await self._slack_client.update_message(
                 message_update_request=SlackChatUpdateMessageRequest(
@@ -140,6 +165,7 @@ class TemplateService:
                         f"Creating a project from the {template.name} "
                         "template."
                     ),
+                    blocks=[text_block],
                 )
             )
 
@@ -163,3 +189,49 @@ class TemplateService:
                     ),
                 )
             )
+
+    def _transform_modal_values(  # noqa: C901
+        self, *, template: BaseTemplate, modal_values: dict[str, str]
+    ) -> dict[str, str]:
+        """Transform modal values into template variables."""
+        # TODO(jonathansick): Relocate this into either TemplateVariablesModal
+        # (if we parse submissions back into with a subclass providing state)
+        # or into the Template class.
+
+        # Drop any null fields so that we get the defaults from cookiecutter.
+        data = {k: v for k, v in modal_values.items() if v is not None}
+
+        for field in template.config["dialog_fields"]:
+            if "preset_groups" in field:
+                # Handle as a preset_groups select menu
+                selected_label = data[field["label"]]
+                for option_group in field["preset_groups"]:
+                    for option in option_group["options"]:
+                        if option["label"] == selected_label:
+                            data.update(dict(option["presets"].items()))
+                del data[field["label"]]
+
+            elif "preset_options" in field:
+                # Handle as a preset select menu
+                selected_value = data[field["label"]]
+                for option in field["preset_options"]:
+                    if option["value"] == selected_value:
+                        data.update(dict(option["presets"].items()))
+                del data[field["label"]]
+
+            elif field["component"] == "select":
+                # Handle as a regular select menu
+                try:
+                    selected_value = data[field["key"]]
+                except KeyError:
+                    # If field not in data, then it was not set, use defaults
+                    continue
+
+                # Replace any truncated values from select fields
+                # with full values
+                for option in field["options"]:
+                    if option["value"] == selected_value:
+                        data[field["key"]] = option["template_value"]
+                        continue
+
+        return data
