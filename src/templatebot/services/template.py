@@ -146,6 +146,13 @@ class TemplateService:
         trigger_channel_id: str | None,
     ) -> None:
         """Create a GitHub repository and set up a project from a template."""
+        # Values for the repository creation. We'll set this when possible
+        # during the pre-processing steps.
+        github_owner: str | None = None
+        github_name: str | None = None
+        github_homepage_url: str | None = None
+        github_description: str | None = None
+
         # Preprocessing steps. First convert values from the Slack modal into
         # cookiecutter template variables. This expands the templatekit
         # preset_groups and preset_options into the full set of template
@@ -158,14 +165,84 @@ class TemplateService:
         # present.
         await self._expand_author_id_variable(template_values)
 
-        # Handle repository/serial number assignment for technotes
         if template.name.startswith("technote_"):
+            # Handle preprocessing steps for technotes. These have
+            # automatically assigned repository/serial numbers
             await self._assign_technote_repo_serial(template_values)
+            github_owner = template_values["github_org"]
+            github_name = (
+                f"{template_values['series'].lower()}"
+                f"-{template_values['serial_number']}"
+            )
+            github_homepage_url = f"https://{github_name}.lsst.io/"
+            github_description = template_values["title"]
+
+        elif template.name == "latex_lsstdoc":
+            # Preprocessing steps for change control documents hosted in
+            # docushare. These have manually-assigned serial numbers.
+            #
+            # In the latex_lsstdoc template, the series and serial_number are
+            # determined from the handle, which the author enters.
+            # This logic attempts to match this metadata
+            # and extract it, if necessary and possible.
+            handle = template_values["handle"]
+            handle_match = re.match(
+                r"(?P<series>[A-Z]+)-(?P<serial_number>[0-9]+)", handle
+            )
+            if handle_match is None:
+                # If the handle does not match the expected pattern, then
+                # we cannot determine the series and serial number.
+                # TODO(jonathansick): send a Slack message to the user
+                raise ValueError(
+                    f"Cannot determine series and serial number from handle: "
+                    f"{handle}"
+                )
+            # TODO(jonathansick): Verify the document handle is not for a
+            # technote or for a document that already exists.
+            template_values["series"] = handle_match["series"]
+            template_values["serial_number"] = handle_match["serial_number"]
+            github_owner = template_values["github_org"]
+            github_name = handle.lower()
+            github_homepage_url = f"https://{github_name}.lsst.io/"
+            github_description = template_values["title"]
+
+        elif template.name == "test_report":
+            # In test_report templates the series and serial_number are
+            # manually assigned.
+            github_name = (
+                f"{template_values['series'].lower()}-"
+                f"{template_values['serial_number']}"
+            )
+            github_owner = template_values["github_org"]
+            github_homepage_url = f"https://{github_name}.lsst.io/"
+            github_description = template_values["title"]
+
+        elif template.name == "stack_package":
+            github_name = template_values["package_name"]
+            github_owner = template_values["github_org"]
+            github_description = "A package in the LSST Science Pipelines."
+
+        else:
+            # A generic repository template. By definition the "name"
+            # is treated as teh github repo name, and the "github_org"
+            # is the owner.
+            github_name = template_values["name"]
+            github_owner = template_values["github_org"]
+            if "summary" in template_values:
+                github_description = template_values["summary"]
+            elif "description" in template_values:
+                github_description = template_values["description"]
 
         # Create a Markdown code block showing the template variable names
         # and the assigned values
         assignment_lines = [
-            f"- `{key}` = `{value}`" for key, value in template_values.items()
+            f"* `{key}` = `{value}`" for key, value in template_values.items()
+        ]
+        github_variables = [
+            f"* github_name = `{github_name}`",
+            f"* github_owner = `{github_owner}`",
+            f"* github_homepage_url = `{github_homepage_url}`",
+            f"* github_description = `{github_description}`",
         ]
         text_block = SlackSectionBlock(
             fields=[
@@ -177,6 +254,9 @@ class TemplateService:
                 ),
                 SlackMrkdwnTextObject(
                     text=f"Template values:\n\n{'\n'.join(assignment_lines)}"
+                ),
+                SlackMrkdwnTextObject(
+                    text=f"GitHub values:\n\n{'\n'.join(github_variables)}"
                 ),
             ]
         )
@@ -290,7 +370,13 @@ class TemplateService:
     async def _assign_technote_repo_serial(
         self, template_values: dict[str, str]
     ) -> None:
-        """Assign a repository serial number for a technote."""
+        """Assign a repository serial number for a technote and update the
+        template values.
+
+        The following standard technote template values are updated:
+
+        - ``serial_number``
+        """
         org_name = template_values["github_org"]
         series = template_values["series"].lower()
 
