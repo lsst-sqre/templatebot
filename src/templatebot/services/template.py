@@ -10,6 +10,7 @@ from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
 from templatebot.storage.authordb import AuthorDb
 from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
+from templatebot.storage.githubrepo import GitHubRepo
 from templatebot.storage.slack import (
     SlackChatUpdateMessageRequest,
     SlackWebApiClient,
@@ -232,6 +233,22 @@ class TemplateService:
                 github_description = template_values["summary"]
             elif "description" in template_values:
                 github_description = template_values["description"]
+
+        # Create the repository on GitHub
+        f = self._github_client_factory
+        github_client = await f.create_installation_client_for_org(
+            github_owner
+        )
+        github_repo = GitHubRepo(
+            owner=github_owner,
+            name=github_name,
+            github_client=github_client,
+            logger=self._logger,
+        )
+        await github_repo.create_repo(
+            homepage=github_homepage_url,
+            description=github_description,
+        )
 
         # Create a Markdown code block showing the template variable names
         # and the assigned values
