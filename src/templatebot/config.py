@@ -219,6 +219,16 @@ class Config(BaseSettings):
         title="Kafka connection configuration.",
     )
 
+    ltd_username: str = Field(
+        ...,
+        description="The username for the LSST the Docs API.",
+    )
+
+    ltd_password: SecretStr = Field(
+        ...,
+        description="The password for the LSST the Docs API user.",
+    )
+
     github_app_id: int = Field(
         ...,
         description=(

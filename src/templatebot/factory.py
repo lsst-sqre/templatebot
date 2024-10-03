@@ -13,6 +13,7 @@ from templatebot.services.slackview import SlackViewService
 from templatebot.services.template import TemplateService
 from templatebot.services.templaterepo import TemplateRepoService
 from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
+from templatebot.storage.ltdclient import LtdClient
 from templatebot.storage.repo import RepoManager
 from templatebot.storage.slack import SlackWebApiClient
 
@@ -94,6 +95,15 @@ class Factory:
             http_client=self._process_context.http_client,
         )
 
+    def create_ltd_client(self) -> LtdClient:
+        """Create a new LSST the Docs client."""
+        return LtdClient(
+            username=config.ltd_username,
+            password=config.ltd_password,
+            http_client=self._process_context.http_client,
+            logger=self._logger,
+        )
+
     def create_slack_message_service(self) -> SlackMessageService:
         """Create a new Slack message handling service."""
         return SlackMessageService(
@@ -135,4 +145,5 @@ class Factory:
             slack_client=self.create_slack_web_client(),
             http_client=self._process_context.http_client,
             github_client_factory=self.create_github_client_factory(),
+            ltd_client=self.create_ltd_client(),
         )

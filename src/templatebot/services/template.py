@@ -11,6 +11,7 @@ from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 from templatebot.storage.authordb import AuthorDb
 from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
 from templatebot.storage.githubrepo import GitHubRepo
+from templatebot.storage.ltdclient import LtdClient
 from templatebot.storage.slack import (
     SlackChatUpdateMessageRequest,
     SlackWebApiClient,
@@ -41,11 +42,13 @@ class TemplateService:
         http_client: AsyncClient,
         slack_client: SlackWebApiClient,
         github_client_factory: GitHubAppClientFactory,
+        ltd_client: LtdClient,
     ) -> None:
         self._logger = logger
         self._http_client = http_client
         self._slack_client = slack_client
         self._github_client_factory = github_client_factory
+        self._ltd_client = ltd_client
 
     async def show_file_template_modal(
         self,
@@ -138,7 +141,7 @@ class TemplateService:
             )
         )
 
-    async def create_project_from_template(
+    async def create_project_from_template(  # noqa: PLR0915
         self,
         *,
         template: ProjectTemplate,
@@ -166,6 +169,11 @@ class TemplateService:
         # present.
         await self._expand_author_id_variable(template_values)
 
+        # Variables for LSST the Docs registration
+        ltd_slug: str | None = None
+        ltd_title: str | None = None
+        github_repo_url: str | None = None
+
         if template.name.startswith("technote_"):
             # Handle preprocessing steps for technotes. These have
             # automatically assigned repository/serial numbers
@@ -177,6 +185,9 @@ class TemplateService:
             )
             github_homepage_url = f"https://{github_name}.lsst.io/"
             github_description = template_values["title"]
+
+            ltd_slug = github_name
+            ltd_title = template_values["title"]
 
         elif template.name == "latex_lsstdoc":
             # Preprocessing steps for change control documents hosted in
@@ -207,6 +218,9 @@ class TemplateService:
             github_homepage_url = f"https://{github_name}.lsst.io/"
             github_description = template_values["title"]
 
+            ltd_slug = github_name
+            ltd_title = template_values["title"]
+
         elif template.name == "test_report":
             # In test_report templates the series and serial_number are
             # manually assigned.
@@ -217,6 +231,9 @@ class TemplateService:
             github_owner = template_values["github_org"]
             github_homepage_url = f"https://{github_name}.lsst.io/"
             github_description = template_values["title"]
+
+            ltd_slug = github_name
+            ltd_title = template_values["title"]
 
         elif template.name == "stack_package":
             github_name = template_values["package_name"]
@@ -245,10 +262,28 @@ class TemplateService:
             github_client=github_client,
             logger=self._logger,
         )
-        await github_repo.create_repo(
+        github_repo_info = await github_repo.create_repo(
             homepage=github_homepage_url,
             description=github_description,
         )
+        github_repo_url = github_repo_info["html_url"]
+
+        if (
+            ltd_slug is not None
+            and ltd_title is not None
+            and github_repo_url is not None
+        ):
+            ltd_info = await self._ltd_client.register_ltd_product(
+                slug=ltd_slug,
+                title=ltd_title,
+                github_repo=github_repo_url,
+                main_mode="lsst_doc"
+                if template.name in ("latex_lsstdoc", "test_report")
+                else "git_refs",
+            )
+            self._logger.info(
+                "Registered project on LSST the Docs", ltd_info=ltd_info
+            )
 
         # Create a Markdown code block showing the template variable names
         # and the assigned values

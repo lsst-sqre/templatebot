@@ -38,6 +38,8 @@ def _make_env_vars(overrides: dict[str, str] | None = None) -> dict[str, str]:
         "TEMPLATEBOT_TEMPLATE_CACHE_DIR": ".tmp/template_cache",
         "TEMPLATEBOT_GITHUB_APP_ID": "1234",
         "TEMPLATEBOT_GITHUB_APP_PRIVATE_KEY": "test",
+        "TEMPLATEBOT_LTD_USERNAME": "test",
+        "TEMPLATEBOT_LTD_PASSWORD": "test",
     }
     if overrides:
         env_vars.update(overrides)
