@@ -19,6 +19,7 @@ safir[redis]>=5
 faststream[kafka]
 rubin-squarebot>=0.10.0
 templatekit
+cookiecutter<2.2  # match templates repo
 GitPython
 cachetools
 gidgethub
