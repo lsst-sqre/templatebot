@@ -241,6 +241,16 @@ class Config(BaseSettings):
         ..., description="The GitHub app private key."
     )
 
+    github_username: str = Field(
+        "squarebot[bot]",
+        description=(
+            "Username, used as the name for GitHub commits "
+            "the email address if `commit_email` is not set "
+            "case, must be the same as the login attribute in the GitHub"
+            "users API."
+        ),
+    )
+
     slack_token: SecretStr = Field(title="Slack bot token")
 
     slack_app_id: str = Field(title="Slack app ID")

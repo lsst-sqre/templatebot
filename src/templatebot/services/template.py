@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any
 
+from cookiecutter.main import cookiecutter
 from httpx import AsyncClient
 from structlog.stdlib import BoundLogger
 from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
 from templatebot.storage.authordb import AuthorDb
+from templatebot.storage.gitclone import GitClone
 from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
 from templatebot.storage.githubrepo import GitHubRepo
 from templatebot.storage.ltdclient import LtdClient
@@ -141,7 +146,7 @@ class TemplateService:
             )
         )
 
-    async def create_project_from_template(  # noqa: PLR0915
+    async def create_project_from_template(  # noqa: PLR0915 C901
         self,
         *,
         template: ProjectTemplate,
@@ -284,6 +289,22 @@ class TemplateService:
             self._logger.info(
                 "Registered project on LSST the Docs", ltd_info=ltd_info
             )
+
+        if github_repo_url is None:
+            raise RuntimeError("No GitHub repository URL was created.")
+
+        # Render the template
+        with TemporaryDirectory() as tmp_dir:
+            project_dir = self._render_template(
+                template=template,
+                template_values=template_values,
+                tmp_dir=Path(tmp_dir),
+            )
+            git_repo = GitClone.init_repo(
+                path=project_dir, github_client=github_client
+            )
+            git_repo.commit("Initial commit")
+            git_repo.push(remote_url=github_repo_url, branch="main")
 
         # Create a Markdown code block showing the template variable names
         # and the assigned values
@@ -495,3 +516,37 @@ class TemplateService:
                 return serial_number + 1
 
         raise RuntimeError("propose_number should not be in this state.")
+
+    def _render_template(
+        self,
+        *,
+        template: ProjectTemplate,
+        template_values: dict[str, Any],
+        tmp_dir: Path,
+    ) -> Path:
+        """Render a project template to a local directory.
+
+        Returns
+        -------
+        pathlib.Path
+            Path to the rendered project itself, which is a subdirectory of
+            tmp_dir.
+        """
+        cookiecutter(
+            str(template.path),
+            output_dir=str(tmp_dir),
+            overwrite_if_exists=True,
+            no_input=True,
+            extra_context=template_values,
+        )
+        self._logger.debug("Rendered cookiecutter project")
+
+        # Find the rendered directory. The actual name is templated so its
+        # easier to just find it.
+        subdirs = [x for x in tmp_dir.iterdir() if x.is_dir()]
+        if len(subdirs) > 1:
+            self._logger.warning(
+                "Found an unexpected number of possible repo dirs",
+                dirs=subdirs,
+            )
+        return subdirs[0]
