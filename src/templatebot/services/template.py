@@ -22,6 +22,7 @@ from templatebot.storage.slack import (
     SlackWebApiClient,
 )
 from templatebot.storage.slack.blockkit import (
+    SlackBlock,
     SlackMrkdwnTextObject,
     SlackSectionBlock,
 )
@@ -146,7 +147,7 @@ class TemplateService:
             )
         )
 
-    async def create_project_from_template(  # noqa: PLR0915 C901
+    async def create_project_from_template(  # noqa: PLR0912 PLR0915 C901
         self,
         *,
         template: ProjectTemplate,
@@ -155,6 +156,15 @@ class TemplateService:
         trigger_channel_id: str | None,
     ) -> None:
         """Create a GitHub repository and set up a project from a template."""
+        if trigger_channel_id and trigger_message_ts:
+            await self._slack_client.update_message(
+                message_update_request=SlackChatUpdateMessageRequest(
+                    channel=trigger_channel_id,
+                    ts=trigger_message_ts,
+                    text="I'm creating your new project...",
+                )
+            )
+
         # Values for the repository creation. We'll set this when possible
         # during the pre-processing steps.
         github_owner: str | None = None
@@ -306,43 +316,69 @@ class TemplateService:
             git_repo.commit("Initial commit")
             git_repo.push(remote_url=github_repo_url, branch="main")
 
-        # Create a Markdown code block showing the template variable names
-        # and the assigned values
-        assignment_lines = [
-            f"* `{key}` = `{value}`" for key, value in template_values.items()
-        ]
-        github_variables = [
-            f"* github_name = `{github_name}`",
-            f"* github_owner = `{github_owner}`",
-            f"* github_homepage_url = `{github_homepage_url}`",
-            f"* github_description = `{github_description}`",
-        ]
-        text_block = SlackSectionBlock(
-            fields=[
-                SlackMrkdwnTextObject(
-                    text=(
-                        f"Creating a project from the {template.name} "
-                        "template."
-                    )
-                ),
-                SlackMrkdwnTextObject(
-                    text=f"Template values:\n\n{'\n'.join(assignment_lines)}"
-                ),
-                SlackMrkdwnTextObject(
-                    text=f"GitHub values:\n\n{'\n'.join(github_variables)}"
-                ),
-            ]
+        # Update the Slack message with the rendered project details
+        reply_blocks: list[SlackBlock] = []
+        reply_blocks.append(
+            SlackSectionBlock(
+                text=SlackMrkdwnTextObject(text="Your new project is ready!")
+            )
         )
+        if ltd_slug is not None:
+            reply_blocks.append(
+                SlackSectionBlock(
+                    fields=[
+                        SlackMrkdwnTextObject(text="*Web page:*"),
+                        SlackMrkdwnTextObject(text="*Repository:*"),
+                        SlackMrkdwnTextObject(
+                            text=github_homepage_url or "Unavailable"
+                        ),
+                        SlackMrkdwnTextObject(
+                            text=github_repo_url or "Unavailable"
+                        ),
+                    ]
+                )
+            )
+            reply_blocks.append(
+                SlackSectionBlock(
+                    text=SlackMrkdwnTextObject(
+                        text=(
+                            "_The homepage link may return a 404 error "
+                            "until the site has been built._"
+                        )
+                    )
+                )
+            )
+            if template.name in ("technote_rst", "technote_md"):
+                reply_blocks.append(
+                    SlackSectionBlock(
+                        text=SlackMrkdwnTextObject(
+                            text=(
+                                "To learn how to write a Rubin technote "
+                                "visit "
+                                "https://documenteer.lsst.io/technotes/"
+                            )
+                        ),
+                    )
+                )
+        else:
+            reply_blocks.append(
+                SlackSectionBlock(
+                    fields=[
+                        SlackMrkdwnTextObject(text="*Repository:*"),
+                        SlackMrkdwnTextObject(
+                            text=github_repo_url or "Unavailable"
+                        ),
+                    ]
+                )
+            )
+
         if trigger_channel_id and trigger_message_ts:
             await self._slack_client.update_message(
                 message_update_request=SlackChatUpdateMessageRequest(
                     channel=trigger_channel_id,
                     ts=trigger_message_ts,
-                    text=(
-                        f"Creating a project from the {template.name} "
-                        "template."
-                    ),
-                    blocks=[text_block],
+                    text="Your new project is ready!",
+                    blocks=reply_blocks,
                 )
             )
 
