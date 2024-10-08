@@ -1,5 +1,14 @@
 # Change log
 
+<!-- scriv-insert-here -->
+
+<a id='changelog-0.3.0'></a>
+## 0.3.0 (2024-10-08)
+
+### New features
+
+- This is an all-new version of templatebot built for the modern Squarebot. It uses Faststream and FastAPI with Pydantic models for modelling the event payloads. Templatebot now also combines the previous templatebot with lsst-templatebot-aide to provide a single backend to handle project bootstrapping for Rubin Observatory projects.
+
 ## 0.2.0 (2021-12-01)
 
 - Change PR for lsst-texmf to use main branches, not master.
