@@ -1,0 +1,36 @@
+{
+  "package_name": "example",
+  "stack_name": ["LSST Science Pipelines", "None"],
+  "copyright_year": "{% now 'utc', '%Y' %}",
+  "copyright_holder": [
+    "Association of Universities for Research in Astronomy, Inc. (AURA)",
+    "Brookhaven Science Associates, LLC",
+    "California Institute of Technology",
+    "Fermi Research Alliance, LLC",
+    "The Board of Trustees of the Leland Stanford Junior University, through SLAC National Accelerator Laboratory",
+    "The Trustees of Princeton University",
+    "University of Illinois Board of Trustees",
+    "University of Washington"
+  ],
+  "github_org": [
+    "lsst",
+    "lsst-dm",
+    "lsst-sims",
+    "lsst-ts",
+    "lsst-sitcom",
+    "lsst-sqre",
+    "lsst-sqre-testing",
+    "lsst-verification-and-validation"
+  ],
+  "base_package": ["base", "sconsUtils"],
+  "uses_cpp": ["True", "False"],
+  "uses_python": ["True", "False"],
+  "has_tasks": ["True", "False"],
+  "uses_dds": ["True", "False"],
+  "python_module": "{{ 'lsst.%s' | format(cookiecutter.package_name) | replace('_', '.') }}",
+  "python_sub_dirs": "{{ cookiecutter.python_module | replace('.', '/') }}",
+  "_extensions": [
+    "jinja2_time.TimeExtension",
+    "templatekit.TemplatekitExtension"
+  ]
+}

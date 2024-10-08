@@ -1,144 +1,312 @@
-"""Configuration collection."""
+"""Application settings."""
 
-import os
+from __future__ import annotations
+
+import ssl
+from enum import Enum
 from pathlib import Path
 
-__all__ = ["create_config"]
+from pydantic import DirectoryPath, Field, FilePath, HttpUrl, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from safir.logging import LogLevel, Profile
+
+__all__ = ["Config", "config"]
 
 
-def create_config():
-    """Create a config mapping from defaults and environment variable
-    overrides.
+class KafkaSecurityProtocol(str, Enum):
+    """Kafka security protocols understood by aiokafka."""
 
-    Returns
-    -------
-    c : `dict`
-        A configuration dictionary.
+    PLAINTEXT = "PLAINTEXT"
+    """Plain-text connection."""
 
-    Examples
-    --------
-    Apply the configuration to the aiohttp.web application::
+    SSL = "SSL"
+    """TLS-encrypted connection."""
 
-        app = web.Application()
-        app.update(create_config)
-    """
-    c = {}
 
-    # Application run profile. 'development' or 'production'
-    c["api.lsst.codes/profile"] = os.getenv(
-        "API_LSST_CODES_PROFILE", "development"
-    ).lower()
+class KafkaSaslMechanism(str, Enum):
+    """Kafka SASL mechanisms understood by aiokafka."""
 
-    # That name of the api.lsst.codes service, which is also the root path
-    # that the app's API is served from.
-    c["api.lsst.codes/name"] = os.getenv("API_LSST_CODES_NAME", "templatebot")
+    PLAIN = "PLAIN"
+    """Plain-text SASL mechanism."""
 
-    # The name of the logger, which should also be the name of the Python
-    # package.
-    c["api.lsst.codes/loggerName"] = os.getenv(
-        "API_LSST_CODES_LOGGER_NAME", "templatebot"
+    SCRAM_SHA_256 = "SCRAM-SHA-256"
+    """SCRAM-SHA-256 SASL mechanism."""
+
+    SCRAM_SHA_512 = "SCRAM-SHA-512"
+    """SCRAM-SHA-512 SASL mechanism."""
+
+
+class KafkaConnectionSettings(BaseSettings):
+    """Settings for connecting to Kafka."""
+
+    bootstrap_servers: str = Field(
+        ...,
+        title="Kafka bootstrap servers",
+        description=(
+            "A comma-separated list of Kafka brokers to connect to. "
+            "This should be a list of hostnames or IP addresses, "
+            "each optionally followed by a port number, separated by "
+            "commas. "
+            "For example: `kafka-1:9092,kafka-2:9092,kafka-3:9092`."
+        ),
     )
 
-    # Log level (INFO or DEBUG)
-    c["api.lsst.codes/logLevel"] = os.getenv(
-        "API_LSST_CODES_LOG_LEVEL",
-        "info" if c["api.lsst.codes/profile"] == "production" else "debug",
-    ).upper()
-
-    # Path of the repository cache
-    c["templatebot/repoCachePath"] = Path(
-        os.getenv("TEMPLATEBOT_CACHE_PATH", ".templatebot_repos")
+    security_protocol: KafkaSecurityProtocol = Field(
+        KafkaSecurityProtocol.PLAINTEXT,
+        description="The security protocol to use when connecting to Kafka.",
     )
 
-    c["templatebot/certCacheDir"] = Path(
-        os.getenv("TEMPLATEBOT_CERT_CACHE", ".")
+    cert_temp_dir: DirectoryPath | None = Field(
+        None,
+        description=(
+            "Temporary writable directory for concatenating certificates."
+        ),
     )
 
-    # Schema Registry hostname (use same config variable as SQRBOTJR)
-    c["templatebot/registryUrl"] = os.getenv("REGISTRY_URL")
-
-    # Kafka broker host (use same config variable as SQRBOTJR)
-    c["templatebot/brokerUrl"] = os.getenv("KAFKA_BROKER")
-
-    # Kafka security protocol: PLAINTEXT or SSL
-    c["templatebot/kafkaProtocol"] = os.getenv("KAFKA_PROTOCOL")
-
-    # Kafka SSL configuration (optional)
-    c["templatebot/clusterCaPath"] = os.getenv("KAFKA_CLUSTER_CA")
-    c["templatebot/clientCaPath"] = os.getenv("KAFKA_CLIENT_CA")
-    c["templatebot/clientCertPath"] = os.getenv("KAFKA_CLIENT_CERT")
-    c["templatebot/clientKeyPath"] = os.getenv("KAFKA_CLIENT_KEY")
-
-    # Slack token (use same config variable as SQRBOTJR)
-    c["templatebot/slackToken"] = os.getenv("SLACK_TOKEN")
-
-    # Suffix to add to Schema Registry suffix names. This is useful when
-    # deploying sqrbot-jr for testing/staging and you do not want to affect
-    # the production subject and its compatibility lineage.
-    c["templatebot/subjectSuffix"] = os.getenv(
-        "TEMPLATEBOT_SUBJECT_SUFFIX", ""
+    cluster_ca_path: FilePath | None = Field(
+        None,
+        title="Path to CA certificate file",
+        description=(
+            "The path to the CA certificate file to use for verifying the "
+            "broker's certificate. "
+            "This is only needed if the broker's certificate is not signed "
+            "by a CA trusted by the operating system."
+        ),
     )
 
-    # Compatibility level to apply to Schema Registry subjects. Use
-    # NONE for testing and development, but prefer FORWARD_TRANSITIVE for
-    # production.
-    c["templatebot/subjectCompatibility"] = os.getenv(
-        "TEMPLATEBOT_SUBJECT_COMPATIBILITY", "FORWARD_TRANSITIVE"
+    client_ca_path: FilePath | None = Field(
+        None,
+        title="Path to client CA certificate file",
+        description=(
+            "The path to the client CA certificate file to use for "
+            "authentication. "
+            "This is only needed when the client certificate needs to be"
+            "concatenated with the client CA certificate, which is common"
+            "for Strimzi installations."
+        ),
     )
 
-    # Template repository (Git URL)
-    c["templatebot/repoUrl"] = os.getenv(
-        "TEMPLATEBOT_REPO", "https://github.com/lsst/templates"
+    client_cert_path: FilePath | None = Field(
+        None,
+        title="Path to client certificate file",
+        description=(
+            "The path to the client certificate file to use for "
+            "authentication. "
+            "This is only needed if the broker is configured to require "
+            "SSL client authentication."
+        ),
     )
 
-    # Default Git ref for the template repository ('templatebot/repo')
-    c["templatebot/repoRef"] = os.getenv("TEMPLATEBOT_REPO_REF", "main")
-
-    # GitHub token for SQuaRE bot
-    c["templatebot/githubToken"] = os.getenv("TEMPLATEBOT_GITHUB_TOKEN")
-    c["templatebot/githubUsername"] = os.getenv("TEMPLATEBOT_GITHUB_USER")
-
-    # Topic names
-    c["templatebot/prerenderTopic"] = os.getenv(
-        "TEMPLATEBOT_TOPIC_PRERENDER", "templatebot.prerender"
-    )
-    c["templatebot/renderreadyTopic"] = os.getenv(
-        "TEMPLATEBOT_TOPIC_RENDERREADY", "templatebot.render-ready"
-    )
-    c["templatebot/postrenderTopic"] = os.getenv(
-        "TEMPLATEBOT_TOPIC_POSTRENDER", "templatebot.postrender"
-    )
-    c["templatebot/appMentionTopic"] = os.getenv(
-        "SQRBOTJR_TOPIC_APP_MENTION", "sqrbot.app.mention"
-    )
-    c["templatebot/messageImTopic"] = os.getenv(
-        "SQRBOTJR_TOPIC_MESSAGE_IM", "sqrbot.message.im"
-    )
-    c["templatebot/interactionTopic"] = os.getenv(
-        "SQRBOTJR_TOPIC_INTERACTION", "sqrbot.interaction"
+    client_key_path: FilePath | None = Field(
+        None,
+        title="Path to client key file",
+        description=(
+            "The path to the client key file to use for authentication. "
+            "This is only needed if the broker is configured to require "
+            "SSL client authentication."
+        ),
     )
 
-    # Group IDs for the Slack topic consumer and the the templatebot
-    # consumer; defaults to the app's name.
-    c["templatebot/slackGroupId"] = os.getenv(
-        "TEMPLATEBOT_SLACK_GROUP_ID", c["api.lsst.codes/name"]
-    )
-    c["templatebot/eventsGroupId"] = os.getenv(
-        "TEMPLATEBOT_EVENTS_GROUP_ID", c["api.lsst.codes/name"]
-    )
-
-    # Enable topic configuration by the app (disable is its being configured
-    # externally).
-    c["templatebot/enableTopicConfig"] = bool(
-        int(os.getenv("TEMPLATEBOT_TOPIC_CONFIG", "1"))
-    )
-    # Enable the Kafka consumer listening to sqrbot
-    c["templatebot/enableSlackConsumer"] = bool(
-        int(os.getenv("TEMPLATEBOT_ENABLE_SLACK_CONSUMER", "1"))
-    )
-    # Enable the Kafka consumer listening to events from the aide
-    c["templatebot/enableEventsConsumer"] = bool(
-        int(os.getenv("TEMPLATEBOT_ENABLE_EVENTS_CONSUMER", "1"))
+    client_key_password: SecretStr | None = Field(
+        None,
+        title="Password for client key file",
+        description=(
+            "The password to use for decrypting the client key file. "
+            "This is only needed if the client key file is encrypted."
+        ),
     )
 
-    return c
+    sasl_mechanism: KafkaSaslMechanism | None = Field(
+        KafkaSaslMechanism.PLAIN,
+        title="SASL mechanism",
+        description=(
+            "The SASL mechanism to use for authentication. "
+            "This is only needed if SASL authentication is enabled."
+        ),
+    )
+
+    sasl_username: str | None = Field(
+        None,
+        title="SASL username",
+        description=(
+            "The username to use for SASL authentication. "
+            "This is only needed if SASL authentication is enabled."
+        ),
+    )
+
+    sasl_password: SecretStr | None = Field(
+        None,
+        title="SASL password",
+        description=(
+            "The password to use for SASL authentication. "
+            "This is only needed if SASL authentication is enabled."
+        ),
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="KAFKA_", case_sensitive=False
+    )
+
+    @property
+    def ssl_context(self) -> ssl.SSLContext | None:
+        """An SSL context for connecting to Kafka with aiokafka, if the
+        Kafka connection is configured to use SSL.
+        """
+        if (
+            self.security_protocol != KafkaSecurityProtocol.SSL
+            or self.cluster_ca_path is None
+            or self.client_cert_path is None
+            or self.client_key_path is None
+        ):
+            return None
+
+        client_cert_path = Path(self.client_cert_path)
+
+        if self.client_ca_path is not None:
+            # Need to contatenate the client cert and CA certificates. This is
+            # typical for Strimzi-based Kafka clusters.
+            if self.cert_temp_dir is None:
+                raise RuntimeError(
+                    "KAFKIT_KAFKA_CERT_TEMP_DIR must be set when "
+                    "a client CA certificate is provided."
+                )
+            client_ca = Path(self.client_ca_path).read_text()
+            client_cert = Path(self.client_cert_path).read_text()
+            sep = "" if client_ca.endswith("\n") else "\n"
+            new_client_cert = sep.join([client_cert, client_ca])
+            new_client_cert_path = Path(self.cert_temp_dir) / "client.crt"
+            new_client_cert_path.write_text(new_client_cert)
+            client_cert_path = Path(new_client_cert_path)
+
+        # Create an SSL context on the basis that we're the client
+        # authenticating the server (the Kafka broker).
+        ssl_context = ssl.create_default_context(
+            purpose=ssl.Purpose.SERVER_AUTH, cafile=str(self.cluster_ca_path)
+        )
+        # Add the certificates that the Kafka broker uses to authenticate us.
+        ssl_context.load_cert_chain(
+            certfile=str(client_cert_path), keyfile=str(self.client_key_path)
+        )
+
+        return ssl_context
+
+
+class Config(BaseSettings):
+    """Configuration for templatebot."""
+
+    name: str = Field("templatebot", title="Name of application")
+
+    path_prefix: str = Field(
+        "/templatebot", title="URL prefix for application"
+    )
+
+    profile: Profile = Field(
+        Profile.development, title="Application logging profile"
+    )
+
+    log_level: LogLevel = Field(
+        LogLevel.INFO, title="Log level of the application's logger"
+    )
+
+    environment_url: str = Field(
+        ...,
+        title="Environment URL",
+        examples=["https://roundtable.lsst.cloud"],
+    )
+
+    kafka: KafkaConnectionSettings = Field(
+        default_factory=KafkaConnectionSettings,
+        title="Kafka connection configuration.",
+    )
+
+    ltd_username: str = Field(
+        ...,
+        description="The username for the LSST the Docs API.",
+    )
+
+    ltd_password: SecretStr = Field(
+        ...,
+        description="The password for the LSST the Docs API user.",
+    )
+
+    github_app_id: int = Field(
+        ...,
+        description=(
+            "The GitHub App ID, as determined by GitHub when setting up a "
+            "GitHub App."
+        ),
+    )
+
+    github_app_private_key: SecretStr = Field(
+        ..., description="The GitHub app private key."
+    )
+
+    github_username: str = Field(
+        "squarebot[bot]",
+        description=(
+            "Username, used as the name for GitHub commits "
+            "the email address if `commit_email` is not set "
+            "case, must be the same as the login attribute in the GitHub"
+            "users API."
+        ),
+    )
+
+    slack_token: SecretStr = Field(title="Slack bot token")
+
+    slack_app_id: str = Field(title="Slack app ID")
+
+    template_repo_url: HttpUrl = Field(
+        description="URL of the template repository"
+    )
+
+    template_cache_dir: Path = Field(
+        description="Directory where template repositories are cloned.",
+    )
+
+    consumer_group_id: str = Field(
+        "templatebot",
+        title="Kafka consumer group ID",
+        description=(
+            "Each Kafka subscriber has a unique consumer group ID, which "
+            "uses this configuration as a prefix."
+        ),
+    )
+
+    app_mention_topic: str = Field(
+        "squarebot.app.mention",
+        title="app_mention Kafka topic",
+        description="Kafka topic name for `app_mention` Slack events.",
+    )
+
+    message_im_topic: str = Field(
+        "squarebot.message.im",
+        title="message.im Kafka topic",
+        description=(
+            "Kafka topic name for `message.im` Slack events (direct message "
+            " channels)."
+        ),
+    )
+
+    block_actions_topic: str = Field(
+        "squarebot.block-actions",
+        description=(
+            "Kafka topic name for Slack block actions interaction "
+            "Slack events"
+        ),
+    )
+
+    view_submission_topic: str = Field(
+        "squarebot.view-submission",
+        description=(
+            "Kafka topic name for Slack view submission interaction "
+            "Slack events"
+        ),
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="TEMPLATEBOT_", case_sensitive=False
+    )
+
+
+config = Config()
+"""Configuration for templatebot."""
