@@ -24,7 +24,7 @@ __all__ = [
     "SlackTextObjectType",
 ]
 
-block_id_field = Field(
+block_id_field: str | None = Field(
     None,
     description="A unique identifier for the block.",
     max_length=255,
