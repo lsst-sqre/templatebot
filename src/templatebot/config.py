@@ -290,8 +290,7 @@ class Config(BaseSettings):
     block_actions_topic: str = Field(
         "squarebot.block-actions",
         description=(
-            "Kafka topic name for Slack block actions interaction "
-            "Slack events"
+            "Kafka topic name for Slack block actions interaction Slack events"
         ),
     )
 

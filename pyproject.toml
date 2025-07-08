@@ -2,24 +2,39 @@
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 name = "templatebot"
 description = "Templatebot is a Squarebot backend for creating files and repositories from templates."
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = [ "LICENSE" ]
 readme = "README.md"
 keywords = ["rubin", "lsst"]
 # https://pypi.org/classifiers/
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Operating System :: POSIX",
+    "Private :: Do Not Upload",
     "Typing :: Typed",
 ]
 requires-python = ">=3.12"
 # Use requirements/main.in for runtime dependencies instead.
-dependencies = []
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]>=0.34",
+    "pydantic",
+    "pydantic-settings",
+    "safir[redis]>=5",
+    "faststream[kafka]",
+    "rubin-squarebot>=0.10.0",
+    "templatekit",
+    "cookiecutter<2.2",  # match templates repo
+    "GitPython",
+    "cachetools",
+    "gidgethub",
+    "pylatexenc",
+]
 dynamic = ["version"]
 
 [project.urls]
@@ -29,6 +44,28 @@ Source = "https://github.com/lsst-sqre/templatebot"
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "asgi-lifespan",
+    "coverage[toml]",
+    "httpx",
+    "pydantic",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "testcontainers[kafka]",
+]
+lint = [
+    "pre-commit",
+    "pre-commit-uv",
+    "ruff>=0.12",
+]
+typing = [
+    "mypy",
+    "types-PyYAML"
+]
+nox = ["nox", "nox-uv"]
 
 [tool.setuptools_scm]
 

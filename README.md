@@ -6,23 +6,29 @@ Templatebot works with the [Squarebot](https://github.com/lsst-sqre/squarebot) S
 ## Development
 
 To bootstrap a development environment, create a virtual environment and install nox:
+Development requires [uv](https://docs.astral.sh/uv/) for managing virtual environments and depedencies.
+Set up a virtual environment and install the required dependencies:
 
 ```bash
-python -m venv .venv
+uv venv
 source .venv/bin/activate
-pip install -U nox
-python -m nox -s init
+make init
 ```
 
 To run the tests:
 
 ```bash
-python -m nox
+uv --only-group=nox nox
 ```
 
 Individual sessions are:
 
-- `init`: Install pre-commit hooks
 - `lint`: Run linters through pre-commit
 - `typing`: Run mypy
 - `test`: Run tests (requires Docker to run testcontainers)
+
+To update the uv lockfile and re-install dependencies:
+
+```bash
+make update
+```

@@ -102,8 +102,7 @@ class TemplateRepoService:
         block = SlackSectionBlock(
             text=SlackMrkdwnTextObject(
                 text=(
-                    f"<@{user_id}> what type of project do you want "
-                    "to make?"
+                    f"<@{user_id}> what type of project do you want to make?"
                 )
             ),
             accessory=select_element,
