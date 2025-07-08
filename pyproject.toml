@@ -54,7 +54,6 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
-    "testcontainers[kafka]",
 ]
 lint = [
     "pre-commit",
@@ -65,7 +64,11 @@ typing = [
     "mypy",
     "types-PyYAML"
 ]
-nox = ["nox", "nox-uv"]
+nox = [
+    "nox",
+    "nox-uv",
+    "testcontainers[kafka]>=4.10.0",
+]
 
 [tool.setuptools_scm]
 

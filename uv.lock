@@ -1403,7 +1403,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
-    { name = "testcontainers" },
 ]
 lint = [
     { name = "pre-commit" },
@@ -1413,6 +1412,7 @@ lint = [
 nox = [
     { name = "nox" },
     { name = "nox-uv" },
+    { name = "testcontainers" },
 ]
 typing = [
     { name = "mypy" },
@@ -1445,7 +1445,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
-    { name = "testcontainers", extras = ["kafka"] },
 ]
 lint = [
     { name = "pre-commit" },
@@ -1455,6 +1454,7 @@ lint = [
 nox = [
     { name = "nox" },
     { name = "nox-uv" },
+    { name = "testcontainers", extras = ["kafka"], specifier = ">=4.10.0" },
 ]
 typing = [
     { name = "mypy" },
