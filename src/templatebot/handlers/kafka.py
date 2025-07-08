@@ -19,7 +19,7 @@ from ..dependencies.consumercontext import (
     consumer_context_dependency,
 )
 
-__all__ = ["kafka_router", "handle_slack_message"]
+__all__ = ["handle_slack_message", "kafka_router"]
 
 
 kafka_security = BaseSecurity(ssl_context=config.kafka.ssl_context)
