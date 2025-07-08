@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
 from cookiecutter.main import cookiecutter
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPError
+from pydantic import ValidationError
 from structlog.stdlib import BoundLogger
 from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
@@ -182,7 +184,59 @@ class TemplateService:
 
         # Expand the author_id variable into full author information, if
         # present.
-        await self._expand_author_id_variable(template_values)
+        try:
+            await self._expand_author_id_variable(template_values)
+        except (HTTPError, ValidationError):
+            error_message = (
+                "I couldn't find information for "
+                f"author ID `{template_values.get('author_id')}`.\n\n"
+                "Check <https://docs.google.com/spreadsheets/d/"
+                "1_zXLp7GaIJnzihKsyEAz298_xdbrgxRgZ1_86kwhGPY/"
+                "edit?pli=1&gid=0#gid=0|the author list> for the correct "
+                "author ID, or <https://github.com/lsst/lsst-texmf/"
+                "edit/main/etc/authordb.yaml|create a pull request to "
+                "https://github.com/lsst/lsst-texmf for `etc/authordb.yaml`>."
+            )
+
+            if trigger_channel_id and trigger_message_ts:
+                await self._slack_client.update_message(
+                    message_update_request=SlackChatUpdateMessageRequest(
+                        channel=trigger_channel_id,
+                        ts=trigger_message_ts,
+                        text=(
+                            "There was an error retrieving author information."
+                        ),
+                        blocks=[
+                            SlackSectionBlock(
+                                type="section",
+                                fields=None,
+                                accessory=None,
+                                text=SlackMrkdwnTextObject(
+                                    type="mrkdwn",
+                                    verbatim=False,
+                                    text=error_message,
+                                ),
+                            ),
+                            SlackSectionBlock(
+                                type="section",
+                                fields=None,
+                                accessory=None,
+                                text=SlackMrkdwnTextObject(
+                                    type="mrkdwn",
+                                    verbatim=False,
+                                    text=(
+                                        "Here's your submitted template "
+                                        "values for reference:\n\n"
+                                        "```\n"
+                                        + json.dumps(template_values, indent=2)
+                                        + "\n```"
+                                    ),
+                                ),
+                            ),
+                        ],
+                    )
+                )
+            raise
 
         # Variables for LSST the Docs registration
         ltd_slug: str | None = None
