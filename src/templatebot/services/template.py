@@ -459,21 +459,33 @@ class TemplateService:
         if not author_id:
             return
 
-        authordb = await AuthorDb.download(self._http_client)
+        authordb = AuthorDb(self._http_client)
         # TODO(jonathansick): handle missing author_id with Slack message
-        author_info = authordb.get_author(author_id)
+        author_info = await authordb.get_author(author_id)
 
-        template_values["first_author_given"] = author_info.given_name
+        template_values["first_author_given"] = (
+            author_info.given_name if author_info.given_name else ""
+        )
         template_values["first_author_family"] = author_info.family_name
-        template_values["first_author_orcid"] = author_info.orcid
+        template_values["first_author_orcid"] = (
+            str(author_info.orcid) if author_info.orcid else ""
+        )
         template_values["first_author_affil_name"] = (
-            author_info.affiliation_name
+            author_info.affiliations[0].name
+            if author_info.affiliations
+            else ""
         )
         template_values["first_author_affil_internal_id"] = (
-            author_info.affiliation_id
+            author_info.affiliations[0].internal_id
+            if author_info.affiliations
+            else ""
         )
         template_values["first_author_affil_address"] = (
-            author_info.affiliation_address
+            author_info.affiliations[0].address.city
+            if author_info.affiliations
+            and author_info.affiliations[0].address
+            and author_info.affiliations[0].address.city
+            else ""
         )
 
     async def _assign_technote_repo_serial(
