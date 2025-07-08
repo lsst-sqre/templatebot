@@ -29,11 +29,12 @@ dependencies = [
     "faststream[kafka]",
     "rubin-squarebot>=0.10.0",
     "templatekit",
-    "cookiecutter<2.2",  # match templates repo
+    "cookiecutter<2.2", # match templates repo
     "GitPython",
     "cachetools",
     "gidgethub",
     "pylatexenc",
+    "uritemplate>=4.2.0",
 ]
 dynamic = ["version"]
 
