@@ -2,7 +2,21 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.4.0'></a>
+
+## 0.4.0 (2025-07-08)
+
+### New features
+
+- Author information is now retrieved from Ook's `/authors/` API, rather than directly through `authordb.yaml` in https://github.com/lsst/lsst-texmf.
+- Improved Slack user feedback when they enter an incorrect author ID, including information on how to find or add an author, and a copy of their original submission for reference.
+
+### Other changes
+
+- Adopt uv.lock for managing dependencies, in conjunction with dependency groups. nox-uv allows us to run nox sessions with uv groups installed. The Docker image build also uses uv to install the project.
+
 <a id='changelog-0.3.0'></a>
+
 ## 0.3.0 (2024-10-08)
 
 ### New features
