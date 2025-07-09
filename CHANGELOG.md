@@ -2,6 +2,14 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.5.0'></a>
+
+## 0.5.0 (2025-07-09)
+
+### New features
+
+- Added ability to create the [lsst-texmf](https://github.com/lsst/lsst-texmf) submodule in new LaTeX projects.
+
 <a id='changelog-0.4.0'></a>
 
 ## 0.4.0 (2025-07-08)

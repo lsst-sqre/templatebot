@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Self
+from typing import Annotated, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -20,34 +20,51 @@ class SlackChatPostMessageRequest(BaseModel):
     See https://api.slack.com/methods/chat.postMessage for more information.
     """
 
-    channel: str = Field(
-        ..., description="The channel ID.", examples=["C1234567890"]
-    )
+    channel: Annotated[
+        str, Field(description="The channel ID.", examples=["C1234567890"])
+    ]
 
-    thread_ts: str | None = Field(
-        None,
-        description="The timestamp of the parent message in a thread.",
-    )
-
-    reply_broadcast: bool | None = Field(
-        None,
-        description=(
-            "Whether to broadcast the message to the channel from a thread "
-            "(see ``thread_ts``)."
+    thread_ts: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="The timestamp of the parent message in a thread.",
         ),
-    )
+    ] = None
 
-    text: str | None = Field(
-        None, description="The text of the message as a fallback for blocks."
-    )
+    reply_broadcast: Annotated[
+        bool | None,
+        Field(
+            default=None,
+            description=(
+                "Whether to broadcast the message to the channel from a "
+                "thread (see ``thread_ts``)."
+            ),
+        ),
+    ] = None
 
-    mrkdwn: bool = Field(
-        True, description="Whether the text is formatted using Slack markdown."
-    )
+    text: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="The text of the message as a fallback for blocks.",
+        ),
+    ] = None
 
-    blocks: list[SlackBlock] | None = Field(
-        None, description="The blocks that make up the message."
-    )
+    mrkdwn: Annotated[
+        bool,
+        Field(
+            default=True,
+            description="Whether the text is formatted using Slack markdown.",
+        ),
+    ] = True
+
+    blocks: Annotated[
+        list[SlackBlock] | None,
+        Field(
+            default=None, description="The blocks that make up the message."
+        ),
+    ] = None
 
     @model_validator(mode="after")
     def validate_text_fallback(self) -> Self:
@@ -63,17 +80,26 @@ class SlackChatUpdateMessageRequest(BaseModel):
     See https://api.slack.com/methods/chat.update for more information.
     """
 
-    channel: str = Field(
-        ..., description="The channel ID.", examples=["C1234567890"]
-    )
+    channel: Annotated[
+        str, Field(description="The channel ID.", examples=["C1234567890"])
+    ]
 
-    ts: str = Field(..., description="The timestamp of the message to update.")
+    ts: Annotated[
+        str, Field(description="The timestamp of the message to update.")
+    ]
 
-    text: str | None = Field(None, description="The new text of the message.")
+    text: Annotated[
+        str | None,
+        Field(default=None, description="The new text of the message."),
+    ] = None
 
-    blocks: list[SlackBlock] | None = Field(
-        None, description="The new blocks that make up the message."
-    )
+    blocks: Annotated[
+        list[SlackBlock] | None,
+        Field(
+            default=None,
+            description="The new blocks that make up the message.",
+        ),
+    ] = None
 
     @model_validator(mode="after")
     def validate_text_or_blocks(self) -> Self:

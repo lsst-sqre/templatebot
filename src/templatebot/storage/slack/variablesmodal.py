@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 from templatekit.repo import FileTemplate, ProjectTemplate
@@ -30,37 +30,54 @@ class TemplateVariablesModalMetadata(BaseModel):
     template is being configured.
     """
 
-    type: Literal["file", "project"] = Field(
-        description="The type of template being configured."
-    )
+    type: Annotated[
+        Literal["file", "project"],
+        Field(description="The type of template being configured."),
+    ]
 
-    template_name: str = Field(
-        description="The name of the template being configured."
-    )
+    template_name: Annotated[
+        str, Field(description="The name of the template being configured.")
+    ]
 
-    git_ref: str = Field(
-        description="The Git reference (branch or tag) for the template."
-    )
+    git_ref: Annotated[
+        str,
+        Field(
+            description="The Git reference (branch or tag) for the template."
+        ),
+    ]
 
-    repo_url: HttpUrl = Field(
-        description="The URL of the repository where the template is stored."
-    )
+    repo_url: Annotated[
+        HttpUrl,
+        Field(
+            description=(
+                "The URL of the repository where the template is stored."
+            )
+        ),
+    ]
 
-    trigger_message_ts: str | None = Field(
-        description=(
-            "The timestamp of the message that triggered the modal (i.e., the "
-            "message that the user clicked on to open the modal). "
-            "Templatebot will update this message with the results of the "
-            "modal and project creation."
-        )
-    )
+    trigger_message_ts: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description=(
+                "The timestamp of the message that triggered the modal "
+                "(i.e., the message that the user clicked on to open the "
+                "modal). Templatebot will update this message with the "
+                "results of the modal and project creation."
+            ),
+        ),
+    ] = None
 
-    trigger_channel_id: str | None = Field(
-        description=(
-            "The channel ID of the message that triggered the modal. "
-            "Used with `trigger_message_ts` to update the source message."
-        )
-    )
+    trigger_channel_id: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description=(
+                "The channel ID of the message that triggered the modal. "
+                "Used with `trigger_message_ts` to update the source message."
+            ),
+        ),
+    ] = None
 
 
 class TemplateVariablesModal(SlackModalView):
