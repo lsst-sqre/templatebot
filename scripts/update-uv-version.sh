@@ -7,9 +7,9 @@
 # http://redsymbol.net/articles/unofficial-bash-strict-mode/ for details.
 set -euo pipefail
 
-# Determine the current frozen uv version. Since the package depends on
-# tox-uv, uv should always be part of the tox group dependencies.
-uv_version=$(uv export -q --no-hashes --only-group tox \
+# Determine the current frozen uv version. Since pre-commit-uv depends on
+# uv, uv should always be part of the tox group dependencies.
+uv_version=$(uv export -q --no-hashes --only-group lint \
              | grep ^uv== | sed 's/.*=//')
 
 # Replace the version in the env variables in GitHub Actions workflows.
