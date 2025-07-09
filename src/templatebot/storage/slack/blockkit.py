@@ -37,43 +37,55 @@ class SlackSectionBlock(BaseModel):
     Reference: https://api.slack.com/reference/block-kit/blocks#section
     """
 
-    type: Literal["section"] = Field(
-        "section",
-        description=(
-            "The type of block. Reference: "
-            "https://api.slack.com/reference/block-kit/blocks"
+    type: Annotated[
+        Literal["section"],
+        Field(
+            default="section",
+            description=(
+                "The type of block. Reference: "
+                "https://api.slack.com/reference/block-kit/blocks"
+            ),
         ),
-    )
+    ] = "section"
 
     block_id: Annotated[str | None, block_id_field] = None
 
-    text: SlackTextObjectType | None = Field(
-        None,
-        description=(
-            "The text to display in the block. Not required if `fields` is "
-            "provided."
+    text: Annotated[
+        SlackTextObjectType | None,
+        Field(
+            default=None,
+            description=(
+                "The text to display in the block. Not required if "
+                "`fields` is provided."
+            ),
         ),
-    )
+    ] = None
 
     # Fields can take other types of elements.
-    fields: list[SlackTextObjectType] | None = Field(
-        None,
-        description=(
-            "An array of text objects. Each element of the array is a "
-            "text object, and is rendered as a separate paragraph."
+    fields: Annotated[
+        list[SlackTextObjectType] | None,
+        Field(
+            default=None,
+            description=(
+                "An array of text objects. Each element of the array is a "
+                "text object, and is rendered as a separate paragraph."
+            ),
+            min_length=1,
+            max_length=10,
         ),
-        min_length=1,
-        max_length=10,
-    )
+    ] = None
 
-    accessory: SlackSectionBlockAccessoryTypes | None = Field(
-        None,
-        description=(
-            "An accessory is an interactive element that can be displayed "
-            "within a section block. For example, a button, select menu, "
-            "or datepicker."
+    accessory: Annotated[
+        SlackSectionBlockAccessoryTypes | None,
+        Field(
+            default=None,
+            description=(
+                "An accessory is an interactive element that can be displayed "
+                "within a section block. For example, a button, select menu, "
+                "or datepicker."
+            ),
         ),
-    )
+    ] = None
 
     @model_validator(mode="after")
     def validate_text_or_fields(self) -> Self:
@@ -108,27 +120,32 @@ class SlackContextBlock(BaseModel):
     Reference: https://api.slack.com/reference/block-kit/blocks#context
     """
 
-    type: Literal["context"] = Field(
-        "context",
-        description=(
-            "The type of block. Reference: "
-            "https://api.slack.com/reference/block-kit/blocks"
+    type: Annotated[
+        Literal["context"],
+        Field(
+            default="context",
+            description=(
+                "The type of block. Reference: "
+                "https://api.slack.com/reference/block-kit/blocks"
+            ),
         ),
-    )
+    ] = "context"
 
     block_id: Annotated[str | None, block_id_field] = None
 
     # image elements can also be supported when available
-    elements: list[SlackTextObjectType] = Field(
-        ...,
-        description=(
-            "An array of text objects. Each element of the array is a "
-            "text or image object, and is rendered in a separate context line."
-            "Maximum of 10 elements."
+    elements: Annotated[
+        list[SlackTextObjectType],
+        Field(
+            description=(
+                "An array of text objects. Each element of the array is a "
+                "text or image object, and is rendered in a separate context "
+                "line. Maximum of 10 elements."
+            ),
+            min_length=1,
+            max_length=10,
         ),
-        min_length=1,
-        max_length=10,
-    )
+    ]
 
 
 class SlackInputBlock(BaseModel):
@@ -137,64 +154,80 @@ class SlackInputBlock(BaseModel):
     Reference: https://api.slack.com/reference/block-kit/blocks#input
     """
 
-    type: Literal["input"] = Field(
-        "input",
-        description=(
-            "The type of block. Reference: "
-            "https://api.slack.com/reference/block-kit/blocks"
+    type: Annotated[
+        Literal["input"],
+        Field(
+            default="input",
+            description=(
+                "The type of block. Reference: "
+                "https://api.slack.com/reference/block-kit/blocks"
+            ),
         ),
-    )
+    ] = "input"
 
     block_id: Annotated[str | None, block_id_field] = None
 
-    label: SlackPlainTextObject = Field(
-        ...,
-        description=(
-            "A label that appears above an input element. "
-            "Maximum length of 2000 characters."
+    label: Annotated[
+        SlackPlainTextObject,
+        Field(
+            description=(
+                "A label that appears above an input element. "
+                "Maximum length of 2000 characters."
+            ),
+            max_length=2000,
         ),
-        max_length=2000,
-    )
+    ]
 
-    element: SlackStaticSelectElement | SlackPlainTextInputElement = Field(
-        ..., description="An input element."
-    )
+    element: Annotated[
+        SlackStaticSelectElement | SlackPlainTextInputElement,
+        Field(description="An input element."),
+    ]
 
-    dispatch_action: bool = Field(
-        False,
-        description=(
-            "A boolean value that indicates whether the input element "
-            "should dispatch action payloads."
+    dispatch_action: Annotated[
+        bool,
+        Field(
+            default=False,
+            description=(
+                "A boolean value that indicates whether the input element "
+                "should dispatch action payloads."
+            ),
         ),
-    )
+    ] = False
 
-    hint: SlackPlainTextObject | None = Field(
-        None,
-        description=(
-            "A plain text object that defines a plain text element that "
-            "apppears below an input element in a lighter font. "
-            "Maximum length of 2000 characters."
+    hint: Annotated[
+        SlackPlainTextObject | None,
+        Field(
+            default=None,
+            description=(
+                "A plain text object that defines a plain text element that "
+                "apppears below an input element in a lighter font. "
+                "Maximum length of 2000 characters."
+            ),
+            max_length=2000,
         ),
-        max_length=2000,
-    )
+    ] = None
 
-    optional: bool = Field(
-        False,
-        description=(
-            "A boolean value that indicates whether the input element may be "
-            "empty when a user submits the modal."
+    optional: Annotated[
+        bool,
+        Field(
+            default=False,
+            description=(
+                "A boolean value that indicates whether the input element "
+                "may be empty when a user submits the modal."
+            ),
         ),
-    )
+    ] = False
 
 
 class SlackTextObjectBase(BaseModel, ABC):
     """A base class for Slack Block Kit text objects."""
 
-    type: Literal["plain_text", "mrkdwn"] = Field(
-        ..., description="The type of object."
-    )
+    type: Annotated[
+        Literal["plain_text", "mrkdwn"],
+        Field(description="The type of object."),
+    ]
 
-    text: str = Field(..., description="The text to display.")
+    text: Annotated[str, Field(description="The text to display.")]
 
     def __len__(self) -> int:
         """Return the length of the text."""
@@ -207,17 +240,21 @@ class SlackPlainTextObject(SlackTextObjectBase):
     https://api.slack.com/reference/block-kit/composition-objects#text
     """
 
-    type: Literal["plain_text"] = Field(
-        "plain_text", description="The type of object."
-    )
+    type: Annotated[
+        Literal["plain_text"],
+        Field(default="plain_text", description="The type of object."),
+    ] = "plain_text"
 
-    emoji: bool = Field(
-        True,
-        description=(
-            "Indicates whether emojis in text should be escaped into colon "
-            "emoji format."
+    emoji: Annotated[
+        bool,
+        Field(
+            default=True,
+            description=(
+                "Indicates whether emojis in text should be escaped into "
+                "colon emoji format."
+            ),
         ),
-    )
+    ] = True
 
 
 class SlackMrkdwnTextObject(SlackTextObjectBase):
@@ -226,18 +263,22 @@ class SlackMrkdwnTextObject(SlackTextObjectBase):
     https://api.slack.com/reference/block-kit/composition-objects#text
     """
 
-    type: Literal["mrkdwn"] = Field(
-        "mrkdwn", description="The type of object."
-    )
+    type: Annotated[
+        Literal["mrkdwn"],
+        Field(default="mrkdwn", description="The type of object."),
+    ] = "mrkdwn"
 
-    verbatim: bool = Field(
-        False,
-        description=(
-            "Indicates whether the text should be treated as verbatim. When "
-            "`True`, URLs will not be auto-converted into links and "
-            "channel names will not be auto-converted into links."
+    verbatim: Annotated[
+        bool,
+        Field(
+            default=False,
+            description=(
+                "Indicates whether the text should be treated as verbatim. "
+                "When `True`, URLs will not be auto-converted into links and "
+                "channel names will not be auto-converted into links."
+            ),
         ),
-    )
+    ] = False
 
 
 SlackTextObjectType = SlackPlainTextObject | SlackMrkdwnTextObject
@@ -253,44 +294,54 @@ class SlackOptionObject(BaseModel):
     """
 
     # Check boxes and radio buttons could use SlackMrkdwnTextObject
-    text: SlackPlainTextObject = Field(
-        ...,
-        description=(
-            "A plain text object that defines the text shown in the option. "
-            "Maximum length of 75 characters."
+    text: Annotated[
+        SlackPlainTextObject,
+        Field(
+            description=(
+                "A plain text object that defines the text shown in the "
+                "option. Maximum length of 75 characters."
+            ),
+            max_length=75,
         ),
-        max_length=75,
-    )
+    ]
 
-    value: str = Field(
-        ...,
-        description=(
-            "A unique string value that will be passed to your app when this "
-            "option is selected."
+    value: Annotated[
+        str,
+        Field(
+            description=(
+                "A unique string value that will be passed to your app when "
+                "this option is selected."
+            ),
+            max_length=150,
         ),
-        max_length=150,
-    )
+    ]
 
     # Check boxes and radio buttons could use SlackMrkdwnTextObject
-    description: SlackPlainTextObject | None = Field(
-        None,
-        description=(
-            "A plain text object that defines a line of descriptive text "
-            "shown below the text. Maximum length of 75 characters."
+    description: Annotated[
+        SlackPlainTextObject | None,
+        Field(
+            default=None,
+            description=(
+                "A plain text object that defines a line of descriptive "
+                "text shown below the text. Maximum length of 75 characters."
+            ),
+            max_length=75,
         ),
-        max_length=75,
-    )
+    ] = None
 
-    url: str | None = Field(
-        None,
-        description=(
-            "A URL to load in the user's browser when the option is clicked. "
-            "The url attribute is only available in overflow menus. The url "
-            "attribute is only available in overflow menus. Maximum length of "
-            "3000 characters."
+    url: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description=(
+                "A URL to load in the user's browser when the option is "
+                "clicked. The url attribute is only available in overflow "
+                "menus. The url attribute is only available in overflow "
+                "menus. Maximum length of 3000 characters."
+            ),
+            max_length=3000,
         ),
-        max_length=3000,
-    )
+    ] = None
 
 
 class SlackOptionGroupObject(BaseModel):
@@ -301,23 +352,28 @@ class SlackOptionGroupObject(BaseModel):
     Reference: https://api.slack.com/reference/block-kit/composition-objects#option_group
     """
 
-    label: SlackPlainTextObject = Field(
-        ...,
-        description=(
-            "A plain text object that defines the label shown above this "
-            "group of options. Maximum length of 75 characters."
+    label: Annotated[
+        SlackPlainTextObject,
+        Field(
+            description=(
+                "A plain text object that defines the label shown above this "
+                "group of options. Maximum length of 75 characters."
+            ),
+            max_length=75,
         ),
-        max_length=75,
-    )
+    ]
 
-    options: list[SlackOptionObject] = Field(
-        ...,
-        description=(
-            "An array of option objects that belong to this specific group."
+    options: Annotated[
+        list[SlackOptionObject],
+        Field(
+            description=(
+                "An array of option objects that belong to this specific "
+                "group."
+            ),
+            min_length=1,
+            max_length=100,
         ),
-        min_length=1,
-        max_length=100,
-    )
+    ]
 
 
 class SlackConfirmationDialogObject(BaseModel):
@@ -326,49 +382,61 @@ class SlackConfirmationDialogObject(BaseModel):
     Reference: https://api.slack.com/reference/block-kit/composition-objects#confirm
     """
 
-    title: SlackPlainTextObject = Field(
-        ...,
-        description=(
-            "A plain text object that defines the dialog's title. Maximum "
-            "length of 100 characters."
+    title: Annotated[
+        SlackPlainTextObject,
+        Field(
+            description=(
+                "A plain text object that defines the dialog's title. "
+                "Maximum length of 100 characters."
+            ),
+            max_length=100,
         ),
-        max_length=100,
-    )
+    ]
 
-    text: SlackPlainTextObject = Field(
-        ...,
-        description=(
-            "A text object that defines the explanatory text that appears in "
-            "the confirm dialog. Maximum length of 300 characters."
+    text: Annotated[
+        SlackPlainTextObject,
+        Field(
+            description=(
+                "A text object that defines the explanatory text that "
+                "appears in the confirm dialog. Maximum length of "
+                "300 characters."
+            ),
+            max_length=300,
         ),
-        max_length=300,
-    )
+    ]
 
-    confirm: SlackPlainTextObject = Field(
-        ...,
-        description=(
-            "A plain text object that defines the text of the button that "
-            "confirms the action. Maximum length of 30 characters."
+    confirm: Annotated[
+        SlackPlainTextObject,
+        Field(
+            description=(
+                "A plain text object that defines the text of the button "
+                "that confirms the action. Maximum length of 30 characters."
+            ),
+            max_length=30,
         ),
-        max_length=30,
-    )
+    ]
 
-    deny: SlackPlainTextObject = Field(
-        ...,
-        description=(
-            "A plain text object that defines the text of the button that "
-            "denies the action. Maximum length of 30 characters."
+    deny: Annotated[
+        SlackPlainTextObject,
+        Field(
+            description=(
+                "A plain text object that defines the text of the button "
+                "that denies the action. Maximum length of 30 characters."
+            ),
+            max_length=30,
         ),
-        max_length=30,
-    )
+    ]
 
-    style: Literal["primary", "danger"] = Field(
-        "primary",
-        description=(
-            "A string value to determine the color of the confirm button. "
-            "Options include `primary` and `danger`."
+    style: Annotated[
+        Literal["primary", "danger"],
+        Field(
+            default="primary",
+            description=(
+                "A string value to determine the color of the confirm "
+                "button. Options include `primary` and `danger`."
+            ),
         ),
-    )
+    ] = "primary"
 
 
 class SlackStaticSelectElement(BaseModel):
@@ -377,73 +445,99 @@ class SlackStaticSelectElement(BaseModel):
     Reference: https://api.slack.com/reference/block-kit/block-elements#static_select
     """
 
-    type: Literal["static_select"] = Field(
-        "static_select",
-        description=(
-            "The type of element. Reference: "
-            "https://api.slack.com/reference/block-kit/block-elements"
+    type: Annotated[
+        Literal["static_select"],
+        Field(
+            default="static_select",
+            description=(
+                "The type of element. Reference: "
+                "https://api.slack.com/reference/block-kit/block-elements"
+            ),
         ),
-    )
+    ] = "static_select"
 
-    placeholder: SlackPlainTextObject | None = Field(
-        None,
-        description=(
-            "A plain text object that defines the placeholder text shown on "
-            "the static select element. Maximum length of 150 characters."
+    placeholder: Annotated[
+        SlackPlainTextObject | None,
+        Field(
+            default=None,
+            description=(
+                "A plain text object that defines the placeholder text shown "
+                "on the static select element. Maximum length of "
+                "150 characters."
+            ),
+            max_length=150,
+            min_length=1,
         ),
-        max_length=150,
-        min_length=1,
-    )
+    ] = None
 
-    options: list[SlackOptionObject] | None = Field(
-        None,
-        description=(
-            "An array of option objects that populate the static select menu."
+    options: Annotated[
+        list[SlackOptionObject] | None,
+        Field(
+            default=None,
+            description=(
+                "An array of option objects that populate the static select "
+                "menu."
+            ),
+            min_length=1,
+            max_length=100,
         ),
-        min_length=1,
-        max_length=100,
-    )
+    ] = None
 
-    option_groups: list[SlackOptionGroupObject] | None = Field(
-        None,
-        description=(
-            "An array of option group objects that populate the select menu "
-            "with groups of options."
+    option_groups: Annotated[
+        list[SlackOptionGroupObject] | None,
+        Field(
+            default=None,
+            description=(
+                "An array of option group objects that populate the select "
+                "menu with groups of options."
+            ),
         ),
-    )
+    ] = None
 
-    action_id: str = Field(
-        ...,
-        description=(
-            "An identifier for the action triggered when a menu option is "
-            "selected."
+    action_id: Annotated[
+        str,
+        Field(
+            description=(
+                "An identifier for the action triggered when a menu option "
+                "is selected."
+            ),
+            max_length=255,
         ),
-        max_length=255,
-    )
+    ]
 
-    initial_option: SlackOptionObject | None = Field(
-        None,
-        description=(
-            "A single option that exactly matches one of the options within "
-            "options. This option will be selected when the menu initially "
-            "loads."
+    initial_option: Annotated[
+        SlackOptionObject | None,
+        Field(
+            default=None,
+            description=(
+                "A single option that exactly matches one of the options "
+                "within options. This option will be selected when the menu "
+                "initially loads."
+            ),
         ),
-    )
+    ] = None
 
-    confirm: SlackConfirmationDialogObject | None = Field(
-        None,
-        description=(
-            "A confirmation dialog that appears after a menu item is selected."
+    confirm: Annotated[
+        SlackConfirmationDialogObject | None,
+        Field(
+            default=None,
+            description=(
+                "A confirmation dialog that appears after a menu item is "
+                "selected."
+            ),
         ),
-    )
+    ] = None
 
-    focus_on_load: bool = Field(
-        False,
-        description=(
-            "A boolean value indicating whether the element should be "
-            "pre-focused when the view opens."
+    focus_on_load: Annotated[
+        bool,
+        Field(
+            default=False,
+            description=(
+                "A boolean value indicating whether the element should be "
+                "pre-focused when the view opens."
+            ),
         ),
-    )
+    ] = False
 
     @model_validator(mode="after")
     def validate_options_or_option_groups(self) -> Self:
@@ -467,69 +561,93 @@ class SlackPlainTextInputElement(BaseModel):
     Reference: https://api.slack.com/reference/block-kit/block-elements#input
     """
 
-    type: Literal["plain_text_input"] = Field(
-        "plain_text_input", description="The type of element."
-    )
+    type: Annotated[
+        Literal["plain_text_input"],
+        Field(default="plain_text_input", description="The type of element."),
+    ] = "plain_text_input"
 
-    action_id: str = Field(
-        ...,
-        description=(
-            "An identifier for the input's value when the parent modal is "
-            "submitted. This should be unique among all other action_ids used "
-            "in the containing block. Maximum length of 255 characters."
+    action_id: Annotated[
+        str,
+        Field(
+            description=(
+                "An identifier for the input's value when the parent modal "
+                "is submitted. This should be unique among all other "
+                "action_ids used in the containing block. Maximum length of "
+                "255 characters."
+            ),
+            max_length=255,
         ),
-        max_length=255,
-    )
+    ]
 
-    initial_value: str | None = Field(
-        None,
-        description=(
-            "The initial (default) value in the plain-text input when it is "
-            "loaded."
+    initial_value: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description=(
+                "The initial (default) value in the plain-text input when it "
+                "is loaded."
+            ),
         ),
-    )
+    ] = None
 
-    placeholder: SlackPlainTextObject | None = Field(
-        None,
-        description=(
-            "A plain text object that defines the placeholder text shown in "
-            "the plain-text input. Maximum length of 150 characters."
+    placeholder: Annotated[
+        SlackPlainTextObject | None,
+        Field(
+            default=None,
+            description=(
+                "A plain text object that defines the placeholder text shown "
+                "in the plain-text input. Maximum length of 150 characters."
+            ),
+            max_length=150,
+            min_length=1,
         ),
-        max_length=150,
-        min_length=1,
-    )
+    ] = None
 
-    multiline: bool = Field(
-        False,
-        description=(
-            "A boolean value indicating whether the input will be a single "
-            "line (false) or a larger textarea (true)."
+    multiline: Annotated[
+        bool,
+        Field(
+            default=False,
+            description=(
+                "A boolean value indicating whether the input will be a "
+                "single line (false) or a larger textarea (true)."
+            ),
         ),
-    )
+    ] = False
 
-    min_length: int | None = Field(
-        None,
-        description=(
-            "The minimum length of input that the user must provide."
+    min_length: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description=(
+                "The minimum length of input that the user must provide."
+            ),
+            ge=1,
+            le=3000,
         ),
-        ge=1,
-        le=3000,
-    )
+    ] = None
 
-    max_length: int | None = Field(
-        None,
-        description=("The maximum length of input that the user can provide."),
-        ge=1,
-        le=3000,
-    )
-
-    focus_on_load: bool = Field(
-        False,
-        description=(
-            "A boolean value indicating whether the element should be "
-            "pre-focused when the view opens."
+    max_length: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description=(
+                "The maximum length of input that the user can provide."
+            ),
+            ge=1,
+            le=3000,
         ),
-    )
+    ] = None
+
+    focus_on_load: Annotated[
+        bool,
+        Field(
+            default=False,
+            description=(
+                "A boolean value indicating whether the element should be "
+                "pre-focused when the view opens."
+            ),
+        ),
+    ] = False
 
     # dispatch_action_config is not implemented yet.
 
