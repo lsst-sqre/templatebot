@@ -33,6 +33,17 @@ from templatebot.storage.slack.variablesmodal import TemplateVariablesModal
 __all__ = ["TemplateService"]
 
 
+LATEX_TEMPLATES = (
+    "latex_lsstdoc",
+    "technote_aastex",
+    "technote_ascomtex",
+    "technote_latex",
+    "technote_latex",
+    "technote_spietex",
+    "test_report",
+)
+
+
 class TemplateService:
     """A service for operating with templates.
 
@@ -369,6 +380,18 @@ class TemplateService:
             )
             git_repo.commit("Initial commit")
             git_repo.push(remote_url=github_repo_url, branch="main")
+
+            if template.name in LATEX_TEMPLATES:
+                # Add the https://github.com/lsst/lsst-texmf repository as a
+                # submodule and push it to the repository.
+                git_repo.repo.create_submodule(
+                    name="lsst-texmf",
+                    path="lsst-texmf",
+                    url="https://github.com/lsst/lsst-texmf.git",
+                    branch="main",
+                )
+                git_repo.commit("Add lsst-texmf submodule")
+                git_repo.push(remote_url=github_repo_url, branch="main")
 
         # Update the Slack message with the rendered project details
         reply_blocks: list[SlackBlock] = []
