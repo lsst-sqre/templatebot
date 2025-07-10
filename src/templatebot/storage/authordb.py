@@ -68,7 +68,6 @@ class Affiliation(BaseModel):
     ror: HttpUrl | None = Field(
         default=None,
         description="ROR URL of the affiliation.",
-        validation_alias="ror_id",
     )
 
     address: Address | None = Field(
