@@ -2,6 +2,14 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.5.1'></a>
+
+## 0.5.1 (2025-07-10)
+
+### Bug fixes
+
+- Fix parsing of the `ror` field from the Ook `/authors/:id` API endpoint.
+
 <a id='changelog-0.5.0'></a>
 
 ## 0.5.0 (2025-07-09)
