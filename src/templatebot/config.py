@@ -208,12 +208,6 @@ class Config(BaseSettings):
         LogLevel.INFO, title="Log level of the application's logger"
     )
 
-    environment_url: str = Field(
-        ...,
-        title="Environment URL",
-        examples=["https://roundtable.lsst.cloud"],
-    )
-
     kafka: KafkaConnectionSettings = Field(
         default_factory=KafkaConnectionSettings,
         title="Kafka connection configuration.",
