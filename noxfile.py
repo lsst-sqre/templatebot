@@ -79,7 +79,6 @@ def _make_env_vars(overrides: dict[str, str] | None = None) -> dict[str, str]:
         "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
         "TEMPLATEBOT_PROFILE": "development",
         "TEMPLATEBOT_LOG_LEVEL": "DEBUG",
-        "TEMPLATEBOT_ENVIRONMENT_URL": "http://example.com/",
         "TEMPLATEBOT_SLACK_TOKEN": "xoxb-testing-123",
         "TEMPLATEBOT_SLACK_APP_ID": "A123456",
         "TEMPLATEBOT_TEMPLATE_REPO_URL": "https://github.com/lsst/templates",
