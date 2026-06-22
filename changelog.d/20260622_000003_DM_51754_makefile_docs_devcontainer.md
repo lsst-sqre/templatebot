@@ -1,3 +1,0 @@
-### Other changes
-
-- Refresh the developer surface for the Python 3.14 / uv 0.11 workflow. The `Makefile` `help` text now reads "templatebot" (it previously read "Ook"), and adds `lint` / `typing` / `test` / `run` convenience targets that delegate to `uv run --only-group=…` (matching the Squarebot archetype). The `.devcontainer` base image moves to `mcr.microsoft.com/devcontainers/python:1-3.14-bookworm` with uv pinned to 0.11.21, kept COPY-free so the human and stoker-sandbox builds stay identical. `README.md`, `AGENTS.md`, and `CLAUDE.md` are updated to describe the modern stack, the new `make` targets, and the `test-coverage` nox session.
