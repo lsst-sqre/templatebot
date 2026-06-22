@@ -26,17 +26,32 @@ __all__ = ["app", "config"]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Set up and tear down the application."""
+    """Set up and tear down the application.
+
+    Note
+    ----
+    The FastStream Kafka broker is started and stopped explicitly here rather
+    than relying on the router's automatic ``include_router`` lifespan hook. As
+    of FastStream 0.7 the router's lifespan context is one-shot: it stops the
+    broker on exit but does not restart it if the lifespan is entered again,
+    whereas ``broker.start()`` and ``broker.stop()`` are re-callable. The test
+    suite drives the app lifespan once per test against the module-level app,
+    so the broker must restart cleanly between tests.
+    """
     # Any code here will be run when the application starts up.
     logger = get_logger(__name__)
 
     await consumer_context_dependency.initialize()
 
-    async with kafka_router.lifespan_context(app):
-        logger.info("Templatebot start up complete.")
-        yield
+    # Start the FastStream Kafka broker explicitly (re-callable across lifespan
+    # entries) rather than via the router's one-shot lifespan hook.
+    await kafka_router.broker.start()
+    logger.info("Templatebot start up complete.")
+
+    yield
 
     # Any code here will be run when the application shuts down.
+    await kafka_router.broker.stop()
     await consumer_context_dependency.aclose()
 
 

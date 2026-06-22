@@ -26,7 +26,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "safir[redis]>=5",
-    "faststream[kafka]",
+    "faststream[kafka]>=0.7,<0.8",
     "rubin-squarebot>=0.10.0",
     "templatekit",
     "cookiecutter<2.2", # match templates repo
