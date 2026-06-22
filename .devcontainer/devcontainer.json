@@ -1,5 +1,5 @@
 {
-  // Project dev container for templatebot. Python 3.13 + uv, with
+  // Project dev container for templatebot. Python 3.14 + uv, with
   // Docker-in-Docker so the testcontainers-based test suite (a Kafka
   // container, see noxfile.py) can run. containerUser=root + privileged are
   // required for the DinD feature's docker-init to start dockerd as PID 1;

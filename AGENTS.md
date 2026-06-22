@@ -6,24 +6,40 @@ Templatebot is a Squarebot backend that creates projects and files from template
 
 ## Common Commands
 
+Development uses [uv](https://docs.astral.sh/uv/) (0.11.x) and Python 3.14 (see `.python-version`).
+
 ### Setup
 ```bash
-make init          # Install all deps (frozen) + pre-commit hooks
-make update-deps   # Update uv.lock + pre-commit hooks
+make init          # uv sync --frozen --all-groups + install pre-commit hooks
+make update        # update-deps then init
+make update-deps   # Update uv.lock + pre-commit hooks + scripts/update-uv-version.sh
 ```
 
+### Make targets (convenience wrappers)
+```bash
+make help          # List the available targets
+make lint          # Lint the code with pre-commit
+make typing        # Run mypy
+make test          # Run the test suite (requires Docker for Kafka)
+make run           # Run the application in development mode
+```
+
+The `lint` target delegates to `uv run --only-group=lint pre-commit run --all-files`; `typing`, `test`, and `run` delegate to the corresponding nox sessions.
+
 ### Testing and Linting (via nox)
+nox is installed in its own dependency group, so invoke it through uv:
 ```bash
 uv run --only-group=nox nox                                          # Run all default sessions (lint, typing, test)
 uv run --only-group=nox nox -s lint                                  # Pre-commit hooks
 uv run --only-group=nox nox -s typing                                # mypy
 uv run --only-group=nox nox -s test                                  # pytest (requires Docker for Kafka testcontainer)
+uv run --only-group=nox nox -s test-coverage                         # pytest + coverage report (used in CI)
 uv run --only-group=nox nox -s test -- tests/handlers/internal_test.py  # Single test file
 uv run --only-group=nox nox -s test -- tests/handlers/internal_test.py::test_get_index  # Single test
 uv run --only-group=nox nox -s run                                   # Dev server with auto-reload + Kafka testcontainer
 ```
 
-Note: nox is installed in its own dependency group. If `nox` isn't on PATH, use `uv run --only-group=nox nox`.
+On macOS the `test` / `test-coverage` / `run` sessions auto-detect Colima and set `TESTCONTAINERS_HOST_OVERRIDE`, so the Kafka testcontainer works without manual env exports.
 
 ### Changelog
 ```bash
@@ -51,7 +67,7 @@ uv run --only-group=nox nox -s scriv-collect -- --add --version X.Y.Z  # Collect
 
 ## Code Conventions
 
-- **Python 3.13** (`.python-version`)
+- **Python 3.14** (`.python-version`)
 - **Line length**: 79 characters
 - **Ruff**: `select = ["ALL"]` with curated ignores (see `ruff-shared.toml`). Format and lint via pre-commit.
 - **mypy**: Strict — `disallow_untyped_defs`, `disallow_incomplete_defs`, Pydantic plugin enabled.
