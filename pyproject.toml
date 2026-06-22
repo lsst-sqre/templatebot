@@ -11,21 +11,21 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Operating System :: POSIX",
     "Private :: Do Not Upload",
     "Typing :: Typed",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 # Use requirements/main.in for runtime dependencies instead.
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]>=0.34",
-    "pydantic",
-    "pydantic-settings",
-    "safir[redis]>=5",
+    "fastapi>=0.137.0",
+    "uvicorn[standard]>=0.38.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.11.0",
+    "safir[redis]>=15",
     "faststream[kafka]>=0.7,<0.8",
     "rubin-squarebot>=0.10.0",
     "templatekit",
