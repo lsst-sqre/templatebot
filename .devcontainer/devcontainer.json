@@ -1,0 +1,28 @@
+{
+  // Project dev container for templatebot. Python 3.13 + uv, with
+  // Docker-in-Docker so the testcontainers-based test suite (a Kafka
+  // container, see noxfile.py) can run. containerUser=root + privileged are
+  // required for the DinD feature's docker-init to start dockerd as PID 1;
+  // the agent itself still runs unprivileged as remoteUser=vscode.
+  "name": "templatebot",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "containerUser": "root",
+  "remoteUser": "vscode",
+  "privileged": true,
+  // Mirrors the README/Makefile bootstrap: frozen sync of all groups +
+  // pre-commit hook install.
+  "postCreateCommand": "make init",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff"
+      ]
+    }
+  }
+}
