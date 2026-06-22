@@ -197,7 +197,7 @@ class TemplateService:
         # present.
         try:
             await self._expand_author_id_variable(template_values)
-        except (HTTPError, ValidationError):
+        except HTTPError, ValidationError:
             error_message = (
                 "I couldn't find information for "
                 f"author ID `{template_values.get('author_id')}`.\n\n"
@@ -540,9 +540,7 @@ class TemplateService:
         # TODO(jonathansick): handle missing author_id with Slack message
         author_info = await authordb.get_author(author_id)
 
-        template_values["first_author_given"] = (
-            author_info.given_name if author_info.given_name else ""
-        )
+        template_values["first_author_given"] = author_info.given_name or ""
         template_values["first_author_family"] = author_info.family_name
         template_values["first_author_orcid"] = (
             str(author_info.orcid) if author_info.orcid else ""

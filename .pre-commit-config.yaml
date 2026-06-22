@@ -15,11 +15,7 @@ repos:
       - id: uv-lock
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Pinned to 0.14.x rather than the current 0.15.x: ruff-format 0.15.x has a
-    # py314-specific bug that rewrites ``except (A, B):`` into the invalid
-    # ``except A, B:`` (Python 2 syntax). 0.14.4 is the latest release that
-    # formats Python 3.14 correctly. Bump to 0.15.x once that bug is fixed.
-    rev: v0.14.4
+    rev: v0.15.18
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]

@@ -64,10 +64,8 @@ lint = [
     # supports 3.14. uv is pinned directly here so scripts/update-uv-version.sh
     # can read the frozen version from the lint group.
     "pre-commit",
-    # Held below 0.15: ruff-format 0.15.x mangles ``except (A, B):`` into
-    # invalid syntax under target-version py314. Keep in sync with the
-    # ruff-pre-commit rev in .pre-commit-config.yaml.
-    "ruff>=0.14,<0.15",
+    # Keep in sync with the ruff-pre-commit rev in .pre-commit-config.yaml.
+    "ruff>=0.15,<0.16",
     "uv>=0.11.21",
 ]
 typing = [
