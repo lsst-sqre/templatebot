@@ -11,22 +11,22 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Operating System :: POSIX",
     "Private :: Do Not Upload",
     "Typing :: Typed",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 # Use requirements/main.in for runtime dependencies instead.
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]>=0.34",
-    "pydantic",
-    "pydantic-settings",
-    "safir[redis]>=5",
-    "faststream[kafka]",
+    "fastapi>=0.137.0",
+    "uvicorn[standard]>=0.38.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.11.0",
+    "safir[redis]>=15",
+    "faststream[kafka]>=0.7,<0.8",
     "rubin-squarebot>=0.10.0",
     "templatekit",
     "cookiecutter<2.2", # match templates repo
@@ -57,9 +57,16 @@ dev = [
     "pytest-cov",
 ]
 lint = [
+    # pre-commit-uv is intentionally omitted: on Python 3.14 its uv-created
+    # hook venvs write a pyvenv.cfg ``version_info`` that fails pre-commit's
+    # health check ("python version did not match created version"). Plain
+    # pre-commit (virtualenv backend) works; revisit once pre-commit-uv
+    # supports 3.14. uv is pinned directly here so scripts/update-uv-version.sh
+    # can read the frozen version from the lint group.
     "pre-commit",
-    "pre-commit-uv",
-    "ruff>=0.12",
+    # Keep in sync with the ruff-pre-commit rev in .pre-commit-config.yaml.
+    "ruff>=0.15,<0.16",
+    "uv>=0.11.21",
 ]
 typing = [
     "mypy",

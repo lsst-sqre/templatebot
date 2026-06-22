@@ -2,6 +2,22 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.5.2'></a>
+## 0.5.2 (2026-06-22)
+
+### Other changes
+
+- Require Python 3.14 (`requires-python >=3.14`), bumping `.python-version` and the PyPI classifiers to 3.14.
+- Raise the runtime dependency floors to the current Squarebot archetype: `safir[redis]>=15`, `fastapi>=0.137.0`, `uvicorn[standard]>=0.38.0`, `pydantic>=2.12.0`, and `pydantic-settings>=2.11.0`. The `cookiecutter<2.2` pin (matching the lsst/templates repo) and the other template-rendering dependency constraints are unchanged, and `uv.lock` is regenerated on Python 3.14.
+
+- Re-align `noxfile.py` to the current Squarebot archetype: add the macOS Colima testcontainers helpers (`_setup_testcontainers_logging()` and `_setup_testcontainers_env()`) that derive `TESTCONTAINERS_HOST_OVERRIDE` from `colima ls -j`, so `nox -s test` works on macOS with Colima without manual environment exports. The `KafkaContainer` import now lives inside the sessions that use it, and a new `test-coverage` session runs the test suite followed by `coverage report` for CI to consume.
+
+- Refresh pre-commit and ruff for Python 3.14: bump `pre-commit-hooks` to v6, pin `uv-pre-commit` to 0.11.21, pin `ruff-pre-commit` to v0.15.18, and target ruff at `py314` in `ruff-shared.toml`. `pre-commit-uv` is dropped from the `lint` dependency group because its uv-created hook venvs fail pre-commit's health check on Python 3.14; uv is added directly to the `lint` group instead so `scripts/update-uv-version.sh` can still resolve the frozen uv version. The two Kafka config enums move from `(str, Enum)` to `enum.StrEnum`. Under Python 3.14 (PEP 758) `ruff format` may drop the parentheses around multiple exception types without an `as` clause (e.g. `except (A, B):` becomes `except A, B:`), which is valid 3.14 syntax.
+
+- Refresh the developer surface for the Python 3.14 / uv 0.11 workflow. The `Makefile` `help` text now reads "templatebot" (it previously read "Ook"), and adds `lint` / `typing` / `test` / `run` convenience targets that delegate to `uv run --only-group=…` (matching the Squarebot archetype). The `.devcontainer` base image moves to `mcr.microsoft.com/devcontainers/python:1-3.14-bookworm` with uv pinned to 0.11.21, kept COPY-free so the human and stoker-sandbox builds stay identical. `README.md`, `AGENTS.md`, and `CLAUDE.md` are updated to describe the modern stack, the new `make` targets, and the `test-coverage` nox session.
+
+- Publish multi-platform Docker images for both `linux/amd64` and `linux/arm64`. The GitHub Actions build now uses the reusable `lsst-sqre/multiplatform-build-and-push` workflow.
+
 <a id='changelog-0.5.1'></a>
 
 ## 0.5.1 (2025-07-10)

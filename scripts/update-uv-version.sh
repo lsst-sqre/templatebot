@@ -7,8 +7,9 @@
 # http://redsymbol.net/articles/unofficial-bash-strict-mode/ for details.
 set -euo pipefail
 
-# Determine the current frozen uv version. Since pre-commit-uv depends on
-# uv, uv should always be part of the tox group dependencies.
+# Determine the current frozen uv version. pre-commit-uv is intentionally
+# omitted from the lint group on Python 3.14, so uv is added to the lint group
+# directly to keep its version frozen in uv.lock and discoverable here.
 uv_version=$(uv export -q --no-hashes --only-group lint \
              | grep ^uv== | sed 's/.*=//')
 

@@ -11,7 +11,7 @@
 #   - Runs a non-root user.
 #   - Sets up the entrypoint and port.
 
-FROM python:3.13.5-slim-bookworm AS base-image
+FROM python:3.14.6-slim-bookworm AS base-image
 
 # Update system packages.
 COPY scripts/install-base-packages.sh .
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 FROM base-image AS install-image
 
 # Install uv.
-COPY --from=ghcr.io/astral-sh/uv:0.7.19 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/uv
 
 # Install system packages only needed for building dependencies.
 COPY scripts/install-dependency-packages.sh .
@@ -33,6 +33,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Disable hard links during uv package installation since we're using a
 # cache on a separate file system.
 ENV UV_LINK_MODE=copy
+
+# Force use of system Python so that the Python version is controlled by
+# the Docker base image version, not by whatever uv decides to install.
+ENV UV_PYTHON_PREFERENCE=only-system
 
 # Install the dependencies.
 WORKDIR /app
