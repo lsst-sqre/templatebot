@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ssl
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from pydantic import DirectoryPath, Field, FilePath, HttpUrl, SecretStr
@@ -13,7 +13,7 @@ from safir.logging import LogLevel, Profile
 __all__ = ["Config", "config"]
 
 
-class KafkaSecurityProtocol(str, Enum):
+class KafkaSecurityProtocol(StrEnum):
     """Kafka security protocols understood by aiokafka."""
 
     PLAINTEXT = "PLAINTEXT"
@@ -23,7 +23,7 @@ class KafkaSecurityProtocol(str, Enum):
     """TLS-encrypted connection."""
 
 
-class KafkaSaslMechanism(str, Enum):
+class KafkaSaslMechanism(StrEnum):
     """Kafka SASL mechanisms understood by aiokafka."""
 
     PLAIN = "PLAIN"

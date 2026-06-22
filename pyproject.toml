@@ -57,9 +57,18 @@ dev = [
     "pytest-cov",
 ]
 lint = [
+    # pre-commit-uv is intentionally omitted: on Python 3.14 its uv-created
+    # hook venvs write a pyvenv.cfg ``version_info`` that fails pre-commit's
+    # health check ("python version did not match created version"). Plain
+    # pre-commit (virtualenv backend) works; revisit once pre-commit-uv
+    # supports 3.14. uv is pinned directly here so scripts/update-uv-version.sh
+    # can read the frozen version from the lint group.
     "pre-commit",
-    "pre-commit-uv",
-    "ruff>=0.12",
+    # Held below 0.15: ruff-format 0.15.x mangles ``except (A, B):`` into
+    # invalid syntax under target-version py314. Keep in sync with the
+    # ruff-pre-commit rev in .pre-commit-config.yaml.
+    "ruff>=0.14,<0.15",
+    "uv>=0.11.21",
 ]
 typing = [
     "mypy",
