@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.5.3'></a>
+## 0.5.3 (2026-06-30)
+
+### Bug fixes
+
+- Updated dependencies with security fixes.
+
 <a id='changelog-0.5.2'></a>
 ## 0.5.2 (2026-06-22)
 
