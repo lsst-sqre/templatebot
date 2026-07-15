@@ -152,7 +152,6 @@ target-version = "py314"
 
 [tool.ruff.lint.isort]
 known-first-party = ["templatebot", "tests"]
-split-on-trailing-comma = false
 
 [tool.scriv]
 categories = [
