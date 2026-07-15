@@ -143,6 +143,7 @@ python_files = ["tests/*.py", "tests/*/*.py"]
 [tool.ruff]
 extend = "ruff-shared.toml"
 extend-exclude = ["original/**"]
+target-version = "py314"
 
 [tool.ruff.lint.extend-per-file-ignores]
 "noxfile.py" = [
@@ -151,7 +152,6 @@ extend-exclude = ["original/**"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["templatebot", "tests"]
-split-on-trailing-comma = false
 
 [tool.scriv]
 categories = [
