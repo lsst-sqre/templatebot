@@ -143,6 +143,7 @@ python_files = ["tests/*.py", "tests/*/*.py"]
 [tool.ruff]
 extend = "ruff-shared.toml"
 extend-exclude = ["original/**"]
+target-version = "py314"
 
 [tool.ruff.lint.extend-per-file-ignores]
 "noxfile.py" = [
