@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.5.4'></a>
+## 0.5.4 (2026-07-20)
+
+### Other changes
+
+- Update pinned dependencies and pre-commit hooks.
+
 <a id='changelog-0.5.3'></a>
 ## 0.5.3 (2026-06-30)
 
