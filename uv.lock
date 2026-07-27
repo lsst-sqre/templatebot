@@ -1341,7 +1341,7 @@ typing = [
 requires-dist = [
     { name = "cachetools" },
     { name = "cookiecutter", specifier = "<2.2" },
-    { name = "fastapi", specifier = ">=0.137.0" },
+    { name = "fastapi", specifier = ">=0.137.0,<0.140" },
     { name = "faststream", extras = ["kafka"], specifier = ">=0.7,<0.8" },
     { name = "gidgethub" },
     { name = "gitpython" },
