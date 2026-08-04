@@ -2,6 +2,23 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.5.5'></a>
+## 0.5.5 (2026-08-04)
+
+### Bug fixes
+
+- Update `gitpython` to 3.1.58, resolving four high-severity advisories that applied to templatebot. The most directly relevant is [GHSA-94p4-4cq8-9g67](https://github.com/advisories/GHSA-94p4-4cq8-9g67) (CVSS 7.5), environment-variable exfiltration through a crafted URL passed to `Repo.create_remote()` / `Remote.add()`: templatebot reaches that call from `GitClone.add_remote()` in `templatebot.storage.gitclone` when it attaches an authenticated remote to a cloned repository, so the affected code path runs during ordinary project creation. Also fixed are [GHSA-r9mr-m37c-5fr3](https://github.com/advisories/GHSA-r9mr-m37c-5fr3) (git option guard bypass via single-character kwarg token smuggling), [GHSA-6p8h-3wgx-97gf](https://github.com/advisories/GHSA-6p8h-3wgx-97gf) (`--template` missing from the unsafe clone-option denylist, allowing arbitrary command execution through clone hooks), and [GHSA-fjr4-x663-mwxc](https://github.com/advisories/GHSA-fjr4-x663-mwxc) (arbitrary file overwrite via `git diff --output` argument injection).
+
+### Other changes
+
+- Update pinned dependencies and pre-commit hooks. Beyond the `gitpython` bump above, the notable moves are uv 0.11.29 to 0.12.1 — applied consistently across `.pre-commit-config.yaml`, the `Dockerfile`, and `UV_VERSION` in both CI workflows — together with websockets 16.1.1 to 17.0.1, uvicorn 0.51.0 to 0.52.1, testcontainers 4.14.2 to 4.15.0, and redis 8.0.1 to 8.1.0.
+
+- Cap `fastapi` below 0.140, and keep it capped through this refresh. FastAPI 0.140.0 made `Dependant` a slotted dataclass, which breaks FastStream's FastAPI plugin because it sets extra attributes on `Dependant` instances (`AttributeError: 'Dependant' object has no attribute 'model' and no __dict__ for setting new attributes`). The upper bound stops `make update` from baking a broken FastAPI into `uv.lock`. Remove it once [ag2ai/faststream#2959](https://github.com/ag2ai/faststream/issues/2959) is fixed.
+
+- Move the linting toolchain to ruff 0.16 (0.15.22 to 0.16.1). The vendored `ruff-shared.toml` is re-synced with the `lsst/templates` `fastapi_safir_app` template to add `CPY001` (`missing-copyright-notice`) to the ignore list, since ruff 0.16 stabilized that rule out of preview and it would otherwise fire on every source file. The `ruff` pin in the `lint` dependency group moves to `>=0.16,<0.17` to stay in sync with the `ruff-pre-commit` rev.
+
+- Use [prek](https://github.com/j178/prek) in place of `pre-commit` to run the hooks, in the `lint` dependency group, the `Makefile`, the noxfile `lint` session, and CI. `.pre-commit-config.yaml` is unchanged — prek consumes it as-is — so the hook set and its revisions are the same. This also lets the `uv` pin move to the `dev` group while `scripts/update-uv-version.sh` (refreshed to the current `lsst/templates` version) continues to read the frozen uv version.
+
 <a id='changelog-0.5.4'></a>
 ## 0.5.4 (2026-07-20)
 
