@@ -63,7 +63,7 @@ dev = [
 lint = [
     "prek",
     # Keep in sync with the ruff-pre-commit rev in .pre-commit-config.yaml.
-    "ruff>=0.15,<0.16",
+    "ruff>=0.16,<0.17",
 ]
 typing = [
     "mypy",
