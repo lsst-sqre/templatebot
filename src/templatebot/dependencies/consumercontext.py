@@ -4,14 +4,25 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Annotated, Any
 
 from aiokafka import ConsumerRecord
-from faststream.kafka.fastapi import KafkaMessage
+from faststream.kafka import KafkaMessage as _KafkaMessage
+from faststream_fastapi import Context
 from structlog import get_logger
 from structlog.stdlib import BoundLogger
 
 from ..factory import Factory, ProcessContext
+
+# ``_KafkaMessage`` is already ``Annotated[KafkaMessage, faststream.Context
+# ("message")]``, which faststream resolves natively but that FastAPI's
+# dependant analysis does not understand when the parameter lives on a
+# nested ``fastapi.Depends`` dependency (only the subscriber's own top-level
+# parameters get faststream's Context markers rewritten automatically by
+# faststream_fastapi). Stack ``faststream_fastapi.Context`` on top so this
+# nested dependency's ``message`` parameter is resolved by FastAPI's own
+# native ``Depends`` machinery instead.
+KafkaMessage = Annotated[_KafkaMessage, Context("message")]
 
 
 @dataclass(slots=True, kw_only=True)
