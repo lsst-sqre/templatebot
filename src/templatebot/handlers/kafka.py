@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from fastapi import Depends
-from faststream.kafka.fastapi import KafkaRouter
+from faststream.kafka import KafkaBroker
 from faststream.security import BaseSecurity
 from rubin.squarebot.models.kafka import (
     SquarebotSlackAppMentionValue,
@@ -19,18 +19,28 @@ from ..dependencies.consumercontext import (
     consumer_context_dependency,
 )
 
-__all__ = ["handle_slack_message", "kafka_router"]
+__all__ = ["handle_slack_message", "kafka_broker"]
 
 
+# The connection config here is hand-rolled (not safir.kafka.
+# KafkaConnectionSettings) because it supports concatenating a client
+# certificate with a client CA certificate for Strimzi installations
+# (cert_temp_dir/client_ca_path), which safir.kafka.KafkaConnectionSettings
+# does not. Normalizing to safir.kafka would drop that capability and would
+# reject the KAFKA_CERT_TEMP_DIR/KAFKA_CLIENT_CA_PATH/KAFKA_CLIENT_KEY_PASSWORD
+# env vars Phalanx may set (safir's settings model uses extra="forbid"), so
+# it is deliberately left as-is here.
 kafka_security = BaseSecurity(ssl_context=config.kafka.ssl_context)
-kafka_router = KafkaRouter(
+# The broker is wrapped by FastStreamAPI in main.py, which starts it before
+# entering the application lifespan and stops it after exit.
+kafka_broker = KafkaBroker(
     config.kafka.bootstrap_servers,
     security=kafka_security,
     logger=get_logger(__name__),
 )
 
 
-@kafka_router.subscriber(
+@kafka_broker.subscriber(
     config.message_im_topic,
     group_id=f"{config.consumer_group_id}-im",
 )
@@ -51,7 +61,7 @@ async def handle_slack_message(
     await message_service.handle_im_message(message)
 
 
-@kafka_router.subscriber(
+@kafka_broker.subscriber(
     config.app_mention_topic,
     group_id=f"{config.consumer_group_id}-app-mention",
 )
@@ -72,7 +82,7 @@ async def handle_slack_app_mention(
     await message_service.handle_app_mention(message)
 
 
-@kafka_router.subscriber(
+@kafka_broker.subscriber(
     config.block_actions_topic,
     group_id=f"{config.consumer_group_id}-block-actions",
 )
@@ -92,7 +102,7 @@ async def handle_slack_block_actions(
     await block_actions_service.handle_block_actions(payload)
 
 
-@kafka_router.subscriber(
+@kafka_broker.subscriber(
     config.view_submission_topic,
     group_id=f"{config.consumer_group_id}-view-submission",
 )

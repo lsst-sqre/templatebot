@@ -21,15 +21,13 @@ classifiers = [
 requires-python = ">=3.14"
 # Use requirements/main.in for runtime dependencies instead.
 dependencies = [
-    # fastapi 0.140 made Dependant a slots dataclass, which breaks FastStream's
-    # FastAPI plugin (it sets attributes on Dependant instances).
-    # TODO: remove when ag2ai/faststream#2959 is fixed
-    "fastapi>=0.137.0,<0.140",
+    "fastapi>=0.137.0,<1",
     "uvicorn[standard]>=0.38.0",
     "pydantic>=2.12.0",
     "pydantic-settings>=2.11.0",
     "safir[redis]>=15",
-    "faststream[kafka]>=0.7,<0.8",
+    "faststream[kafka]>=0.7.3,<0.8",
+    "faststream-fastapi>=1.2.1,<2",
     "rubin-squarebot>=0.10.0",
     "templatekit",
     "cookiecutter<2.2", # match templates repo

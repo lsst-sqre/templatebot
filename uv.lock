@@ -507,6 +507,19 @@ kafka = [
 ]
 
 [[package]]
+name = "faststream-fastapi"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "faststream" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/13/59/76b140ed8d6f66e9e8b8e1f5f341ee8b24376356ba712cab904be9670319/faststream_fastapi-1.2.1.tar.gz", hash = "sha256:f34e39439bb008dd8df3a616d41ca2dda2cd76726585476f204526e1f76bda1e", size = 12239, upload-time = "2026-07-30T10:25:03.621Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/11/4c/2e80037d4fc563148dd06ac01e72a09a6b8a90e9a7687db7a060f57a24b5/faststream_fastapi-1.2.1-py3-none-any.whl", hash = "sha256:f1fec6f8de29f72289065308d4f3954b60d4e36c5f04d3b09f62152a461e9af8", size = 19923, upload-time = "2026-07-30T10:25:02.397Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.32.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1283,6 +1296,7 @@ dependencies = [
     { name = "cookiecutter" },
     { name = "fastapi" },
     { name = "faststream", extra = ["kafka"] },
+    { name = "faststream-fastapi" },
     { name = "gidgethub" },
     { name = "gitpython" },
     { name = "pydantic" },
@@ -1324,8 +1338,9 @@ typing = [
 requires-dist = [
     { name = "cachetools" },
     { name = "cookiecutter", specifier = "<2.2" },
-    { name = "fastapi", specifier = ">=0.137.0,<0.140" },
-    { name = "faststream", extras = ["kafka"], specifier = ">=0.7,<0.8" },
+    { name = "fastapi", specifier = ">=0.137.0,<1" },
+    { name = "faststream", extras = ["kafka"], specifier = ">=0.7.3,<0.8" },
+    { name = "faststream-fastapi", specifier = ">=1.2.1,<2" },
     { name = "gidgethub" },
     { name = "gitpython" },
     { name = "pydantic", specifier = ">=2.12.0" },
