@@ -7,25 +7,26 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest_asyncio
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI
+from faststream_fastapi import FastStreamAPI
 from httpx import AsyncClient
 
 from templatebot import main
 
 
 @pytest_asyncio.fixture
-async def app() -> AsyncIterator[FastAPI]:
+async def app() -> AsyncIterator[FastStreamAPI]:
     """Return a configured test application.
 
     Wraps the application in a lifespan manager so that startup and shutdown
-    events are sent during test execution.
+    events are sent during test execution. This also starts and stops the
+    Kafka broker around the app's own lifespan.
     """
     async with LifespanManager(main.app):
         yield main.app
 
 
 @pytest_asyncio.fixture
-async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
+async def client(app: FastStreamAPI) -> AsyncIterator[AsyncClient]:
     """Return an ``httpx.AsyncClient`` configured to talk to the test app."""
     transport = httpx.ASGITransport(app=app)
     async with AsyncClient(
