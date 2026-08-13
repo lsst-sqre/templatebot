@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.5.6'></a>
+## 0.5.6 (2026-08-13)
+
+### Other changes
+
+- Adopted [`faststream_fastapi`](https://faststream-community.github.io/faststream_fastapi/) in place of FastStream's now-deprecated built-in FastAPI plugin (`faststream.kafka.fastapi.KafkaRouter`). The Kafka subscribers now hang off a plain `KafkaBroker`, and `FastStreamAPI` wraps the FastAPI app to start/stop the broker around its lifespan. This also lifts the `fastapi<0.140` cap that was needed to work around the deprecated plugin.
+
 <a id='changelog-0.5.5'></a>
 ## 0.5.5 (2026-08-04)
 
