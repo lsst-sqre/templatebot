@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Self
 
 import structlog
-from httpx import AsyncClient
+from httpx import AsyncClient, Timeout
 from structlog.stdlib import BoundLogger
 
 from templatebot.services.slackblockactions import SlackBlockActionsService
@@ -19,7 +19,15 @@ from templatebot.storage.slack import SlackWebApiClient
 
 from .config import config
 
-__all__ = ["Factory", "ProcessContext"]
+__all__ = ["CONNECT_TIMEOUT", "Factory", "ProcessContext"]
+
+CONNECT_TIMEOUT = 10.0
+"""Timeout, in seconds, for establishing a connection to an HTTP server.
+
+Connecting is bounded separately from the rest of a request so that
+`~templatebot.config.Config.http_timeout` stays the single operator-facing
+knob for how long a slow *response* is tolerated.
+"""
 
 
 @dataclass(kw_only=True, frozen=True, slots=True)
@@ -39,7 +47,9 @@ class ProcessContext:
     @classmethod
     async def create(cls) -> Self:
         """Create a new process context."""
-        http_client = AsyncClient()
+        http_client = AsyncClient(
+            timeout=Timeout(config.http_timeout, connect=CONNECT_TIMEOUT)
+        )
         repo_manager = RepoManager(
             url=str(config.template_repo_url),
             cache_dir=config.template_cache_dir,

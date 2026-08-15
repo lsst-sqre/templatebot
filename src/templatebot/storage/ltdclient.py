@@ -40,7 +40,7 @@ class LtdClient:
         auth = BasicAuth(
             username=self._username, password=self._password.get_secret_value()
         )
-        response = await self._http_client.get(url, auth=auth, timeout=10)
+        response = await self._http_client.get(url, auth=auth)
         response.raise_for_status()
         data = response.json()
         return data["token"]
