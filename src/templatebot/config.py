@@ -208,6 +208,17 @@ class Config(BaseSettings):
         LogLevel.INFO, title="Log level of the application's logger"
     )
 
+    http_timeout: float = Field(
+        30.0,
+        title="HTTP timeout (seconds)",
+        description=(
+            "Timeout, in seconds, applied to every outbound request made "
+            "with the shared HTTP client (Slack, GitHub, and LSST the Docs). "
+            "The connection phase of a request uses its own fixed timeout; "
+            "see `templatebot.factory.CONNECT_TIMEOUT`."
+        ),
+    )
+
     kafka: KafkaConnectionSettings = Field(
         default_factory=KafkaConnectionSettings,
         title="Kafka connection configuration.",
