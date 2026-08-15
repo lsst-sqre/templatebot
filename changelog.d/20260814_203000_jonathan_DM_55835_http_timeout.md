@@ -1,3 +1,0 @@
-### Bug fixes
-
-- Make the shared HTTP client's timeout explicit and configurable. The client was constructed without a timeout, so httpx's 5 second default applied to every outbound call in the process — Slack, GitHub, and LSST the Docs alike — and a slow Slack API call could raise `httpx.ReadTimeout` in the middle of project creation. The total timeout is now 30 seconds by default and is configurable with `TEMPLATEBOT_HTTP_TIMEOUT`; connecting is bounded separately by a fixed 10 second `CONNECT_TIMEOUT`, so the environment variable is the single operator-facing knob. `LtdClient.get_token` no longer overrides the timeout with its own 10 second value.
