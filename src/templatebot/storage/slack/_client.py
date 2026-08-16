@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from pydantic import SecretStr
 from structlog.stdlib import BoundLogger
 
+from ..retry import retry_async
 from ._models import SlackChatPostMessageRequest, SlackChatUpdateMessageRequest
 from .views import SlackModalView
 
@@ -91,15 +92,31 @@ class SlackWebApiClient:
         Raises
         ------
         httpx.HTTPStatusError
-            Raised if the request fails.
+            Raised if the request still fails after the retries are
+            exhausted.
+
+        Notes
+        -----
+        Slack's Web API methods are safe to re-issue after a transport
+        failure — a ``chat.postMessage`` that timed out on the read may still
+        have posted, but a duplicate Slack message is a far smaller harm than
+        silently dropping the update — so this call opts into
+        `~templatebot.storage.retry.retry_async`.
         """
         url = self._format_url(method)
-        r = await self._http_client.post(
-            url,
-            json=body,
-            headers=self.create_headers(),
+
+        async def send() -> Response:
+            r = await self._http_client.post(
+                url,
+                json=body,
+                headers=self.create_headers(),
+            )
+            r.raise_for_status()
+            return r
+
+        r = await retry_async(
+            send, logger=self._logger.bind(slack_method=method)
         )
-        r.raise_for_status()
         resp_json = r.json()
         if not resp_json["ok"]:
             self._logger.error(
@@ -131,16 +148,28 @@ class SlackWebApiClient:
         Raises
         ------
         httpx.HTTPStatusError
-            Raised if the request fails.
+            Raised if the request still fails after the retries are
+            exhausted.
+
+        Notes
+        -----
+        Reads have no side effects, so this call opts into
+        `~templatebot.storage.retry.retry_async`.
         """
         url = self._format_url(method)
 
-        r = await self._http_client.get(
-            url,
-            params=params,
-            headers=self.create_headers(),
+        async def send() -> Response:
+            r = await self._http_client.get(
+                url,
+                params=params,
+                headers=self.create_headers(),
+            )
+            r.raise_for_status()
+            return r
+
+        r = await retry_async(
+            send, logger=self._logger.bind(slack_method=method)
         )
-        r.raise_for_status()
         return r.json()
 
     def _format_url(self, method: str) -> str:
