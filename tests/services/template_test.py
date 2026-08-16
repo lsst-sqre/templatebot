@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any, Self, cast
 
@@ -39,14 +40,18 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "data" / "templates"
 class FakeGitHubClient:
     """Stand-in for a gidgethub installation client.
 
-    Only the ``POST /orgs/{org}/repos`` call that `GitHubRepo.create_repo`
-    makes is implemented.
+    Only the two calls the service makes are implemented: the
+    ``POST /orgs/{org}/repos`` behind `GitHubRepo.create_repo`, and the
+    paginated ``GET /orgs/{org}/repos`` listing that
+    ``TemplateService._assign_technote_repo_serial`` walks.
     """
 
     oauth_token = "gh-token"
 
     def __init__(self) -> None:
         self.error: Exception | None = None
+        self.getiter_error: Exception | None = None
+        self.repos: list[str] = []
         self.created: list[dict[str, Any]] = []
 
     async def post(
@@ -57,6 +62,14 @@ class FakeGitHubClient:
         self.created.append(data)
         org = url_vars["org_name"]
         return {"html_url": f"https://github.com/{org}/{data['name']}"}
+
+    async def getiter(
+        self, url: str, *, url_vars: dict[str, str]
+    ) -> AsyncIterator[dict[str, Any]]:
+        if self.getiter_error is not None:
+            raise self.getiter_error
+        for name in self.repos:
+            yield {"name": name}
 
 
 class FakeGitHubClientFactory:
@@ -283,6 +296,40 @@ async def test_failed_final_summary_does_not_abort_creation(
 
     assert [repo["name"] for repo in github_client.created] == ["testapp"]
     assert git_clone.pushes == ["https://github.com/lsst-sqre/testapp"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep", "renderer", "git_clone")
+async def test_lost_final_summary_logs_the_repository_url(
+    respx_mock: respx.MockRouter,
+    github_client: FakeGitHubClient,
+) -> None:
+    """A lost final summary is the one swallowed failure that costs the user
+    something: the repository exists but its URL never reaches Slack. The log
+    event has to carry the URL so an operator can hand it over.
+    """
+    respx_mock.post(CHAT_UPDATE_URL).mock(
+        side_effect=[
+            httpx.Response(200, json=OK),
+            httpx.ReadTimeout("timed out"),
+            httpx.ReadTimeout("timed out"),
+            httpx.ReadTimeout("timed out"),
+        ]
+    )
+
+    with capture_logs() as logs:
+        await create_project(github_client=github_client, modal_values=None)
+
+    failures = [
+        entry
+        for entry in logs
+        if entry["event"] == "slack_status_update_failed"
+    ]
+    assert len(failures) == 1
+    assert (
+        failures[0]["github_repo_url"]
+        == "https://github.com/lsst-sqre/testapp"
+    )
 
 
 @pytest.mark.asyncio

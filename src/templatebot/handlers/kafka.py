@@ -102,6 +102,17 @@ async def handle_slack_block_actions(
     await block_actions_service.handle_block_actions(payload)
 
 
+# This subscriber keeps FastStream's default acknowledgement policy,
+# ACK_FIRST, which is at-most-once: the offset is committed before the
+# handler runs, so a submission that fails partway is never redelivered.
+# That is deliberate. `TemplateService.create_project_from_template` is not
+# idempotent -- a redelivery would burn a second technote serial through
+# `_assign_technote_repo_serial` and could create a duplicate GitHub
+# repository or LSST the Docs product. Losing the request is the lesser
+# harm. Recovery is manual, and the `project_creation_abandoned` event that
+# `SlackViewService` logs on the way out is the operator's path to it: it
+# names the template, channel, message timestamp, and user needed to
+# recreate the project by hand.
 @kafka_broker.subscriber(
     config.view_submission_topic,
     group_id=f"{config.consumer_group_id}-view-submission",

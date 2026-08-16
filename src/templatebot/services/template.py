@@ -165,6 +165,7 @@ class TemplateService:
         message_ts: str | None,
         text: str,
         blocks: list[SlackBlock] | None = None,
+        log_context: dict[str, str] | None = None,
     ) -> None:
         """Update a Slack message with progress, never failing the caller.
 
@@ -184,13 +185,18 @@ class TemplateService:
             The new message text, also used as the notification fallback.
         blocks
             The new Block Kit blocks, if any.
+        log_context
+            Extra key/value pairs to bind onto the failure log event. The
+            final summary passes the repository URL this way, since that is
+            what the user loses when the update is dropped.
 
         Notes
         -----
         The tradeoff is deliberate and worst for the *final* summary: if that
         update fails, the repository still exists but the user never sees its
         URL in Slack. The operator learns about it from this method's log
-        event instead.
+        event instead, which is why that call site passes the URL through
+        ``log_context``.
         """
         if not (channel_id and message_ts):
             return
@@ -211,6 +217,7 @@ class TemplateService:
                 message_ts=message_ts,
                 error=str(e),
                 error_type=type(e).__name__,
+                **(log_context or {}),
             )
 
     async def create_project_from_template(  # noqa: PLR0912 PLR0915 C901
@@ -499,6 +506,7 @@ class TemplateService:
             message_ts=trigger_message_ts,
             text="Your new project is ready!",
             blocks=reply_blocks,
+            log_context={"github_repo_url": github_repo_url},
         )
 
     async def create_file_from_template(
