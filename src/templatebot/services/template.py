@@ -20,6 +20,7 @@ from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
 from templatebot.storage.githubrepo import GitHubRepo
 from templatebot.storage.ltdclient import LtdClient
 from templatebot.storage.slack import (
+    SlackApiError,
     SlackChatUpdateMessageRequest,
     SlackWebApiClient,
 )
@@ -149,16 +150,68 @@ class TemplateService:
     ) -> None:
         """Respond with non-configurable content."""
         # TODO(jonathansick): render the template and send it back to the user
-        await self._slack_client.update_message(
-            message_update_request=SlackChatUpdateMessageRequest(
-                channel=channel_id,
-                ts=trigger_message_ts,
-                text=(
-                    f"The {template.name} template does not require "
-                    "configuration."
-                ),
-            )
+        await self._post_status_update(
+            channel_id=channel_id,
+            message_ts=trigger_message_ts,
+            text=(
+                f"The {template.name} template does not require configuration."
+            ),
         )
+
+    async def _post_status_update(
+        self,
+        *,
+        channel_id: str | None,
+        message_ts: str | None,
+        text: str,
+        blocks: list[SlackBlock] | None = None,
+    ) -> None:
+        """Update a Slack message with progress, never failing the caller.
+
+        Status updates are cosmetic: they report on work rather than doing
+        any. A Slack outage must therefore not be able to discard a project
+        the user asked for, so every failure is logged and swallowed here.
+
+        Parameters
+        ----------
+        channel_id
+            The channel holding the message to update. When either this or
+            ``message_ts`` is `None` there is no message to update and the
+            call is a no-op.
+        message_ts
+            The timestamp of the message to update.
+        text
+            The new message text, also used as the notification fallback.
+        blocks
+            The new Block Kit blocks, if any.
+
+        Notes
+        -----
+        The tradeoff is deliberate and worst for the *final* summary: if that
+        update fails, the repository still exists but the user never sees its
+        URL in Slack. The operator learns about it from this method's log
+        event instead.
+        """
+        if not (channel_id and message_ts):
+            return
+        try:
+            await self._slack_client.update_message(
+                message_update_request=SlackChatUpdateMessageRequest(
+                    channel=channel_id,
+                    ts=message_ts,
+                    text=text,
+                    blocks=blocks,
+                )
+            )
+        except (HTTPError, SlackApiError) as e:
+            self._logger.warning(
+                "slack_status_update_failed",
+                slack_method="chat.update",
+                channel=channel_id,
+                message_ts=message_ts,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     async def create_project_from_template(  # noqa: PLR0912 PLR0915 C901
         self,
@@ -169,14 +222,11 @@ class TemplateService:
         trigger_channel_id: str | None,
     ) -> None:
         """Create a GitHub repository and set up a project from a template."""
-        if trigger_channel_id and trigger_message_ts:
-            await self._slack_client.update_message(
-                message_update_request=SlackChatUpdateMessageRequest(
-                    channel=trigger_channel_id,
-                    ts=trigger_message_ts,
-                    text="I'm creating your new project...",
-                )
-            )
+        await self._post_status_update(
+            channel_id=trigger_channel_id,
+            message_ts=trigger_message_ts,
+            text="I'm creating your new project...",
+        )
 
         # Values for the repository creation. We'll set this when possible
         # during the pre-processing steps.
@@ -209,44 +259,39 @@ class TemplateService:
                 "https://github.com/lsst/lsst-texmf for `etc/authordb.yaml`>."
             )
 
-            if trigger_channel_id and trigger_message_ts:
-                await self._slack_client.update_message(
-                    message_update_request=SlackChatUpdateMessageRequest(
-                        channel=trigger_channel_id,
-                        ts=trigger_message_ts,
-                        text=(
-                            "There was an error retrieving author information."
+            await self._post_status_update(
+                channel_id=trigger_channel_id,
+                message_ts=trigger_message_ts,
+                text="There was an error retrieving author information.",
+                blocks=[
+                    SlackSectionBlock(
+                        type="section",
+                        fields=None,
+                        accessory=None,
+                        text=SlackMrkdwnTextObject(
+                            type="mrkdwn",
+                            verbatim=False,
+                            text=error_message,
                         ),
-                        blocks=[
-                            SlackSectionBlock(
-                                type="section",
-                                fields=None,
-                                accessory=None,
-                                text=SlackMrkdwnTextObject(
-                                    type="mrkdwn",
-                                    verbatim=False,
-                                    text=error_message,
-                                ),
+                    ),
+                    SlackSectionBlock(
+                        type="section",
+                        fields=None,
+                        accessory=None,
+                        text=SlackMrkdwnTextObject(
+                            type="mrkdwn",
+                            verbatim=False,
+                            text=(
+                                "Here's your submitted template "
+                                "values for reference:\n\n"
+                                "```\n"
+                                + json.dumps(template_values, indent=2)
+                                + "\n```"
                             ),
-                            SlackSectionBlock(
-                                type="section",
-                                fields=None,
-                                accessory=None,
-                                text=SlackMrkdwnTextObject(
-                                    type="mrkdwn",
-                                    verbatim=False,
-                                    text=(
-                                        "Here's your submitted template "
-                                        "values for reference:\n\n"
-                                        "```\n"
-                                        + json.dumps(template_values, indent=2)
-                                        + "\n```"
-                                    ),
-                                ),
-                            ),
-                        ],
-                    )
-                )
+                        ),
+                    ),
+                ],
+            )
             raise
 
         # Variables for LSST the Docs registration
@@ -449,15 +494,12 @@ class TemplateService:
                 )
             )
 
-        if trigger_channel_id and trigger_message_ts:
-            await self._slack_client.update_message(
-                message_update_request=SlackChatUpdateMessageRequest(
-                    channel=trigger_channel_id,
-                    ts=trigger_message_ts,
-                    text="Your new project is ready!",
-                    blocks=reply_blocks,
-                )
-            )
+        await self._post_status_update(
+            channel_id=trigger_channel_id,
+            message_ts=trigger_message_ts,
+            text="Your new project is ready!",
+            blocks=reply_blocks,
+        )
 
     async def create_file_from_template(
         self,
@@ -469,16 +511,11 @@ class TemplateService:
     ) -> None:
         """Create a file from a template."""
         # TODO(jonathansick): implement this
-        if trigger_channel_id and trigger_message_ts:
-            await self._slack_client.update_message(
-                message_update_request=SlackChatUpdateMessageRequest(
-                    channel=trigger_channel_id,
-                    ts=trigger_message_ts,
-                    text=(
-                        f"Creating a file from the {template.name} template."
-                    ),
-                )
-            )
+        await self._post_status_update(
+            channel_id=trigger_channel_id,
+            message_ts=trigger_message_ts,
+            text=f"Creating a file from the {template.name} template.",
+        )
 
     def _transform_modal_values(  # noqa: C901
         self, *, template: BaseTemplate, modal_values: dict[str, str]

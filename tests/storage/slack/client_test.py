@@ -12,16 +12,6 @@ from structlog.testing import capture_logs
 from templatebot.storage.slack import SlackApiError, SlackWebApiClient
 
 
-@pytest.fixture
-def _no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make the retry helper's backoff instantaneous."""
-
-    async def fake_sleep(delay: float) -> None:
-        return
-
-    monkeypatch.setattr("templatebot.storage.retry._sleep", fake_sleep)
-
-
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_no_retry_sleep")
 async def test_post_json_retries_transient_failures(
