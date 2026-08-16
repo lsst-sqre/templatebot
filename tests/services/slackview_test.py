@@ -11,6 +11,7 @@ import structlog
 from pydantic import HttpUrl, SecretStr
 from rubin.squarebot.models.kafka import SquarebotSlackViewSubmissionValue
 from rubin.squarebot.models.slack import SlackTeam, SlackUser
+from safir.slack.webhook import SlackWebhookClient
 from structlog.testing import capture_logs
 from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
@@ -33,6 +34,7 @@ from tests.services.template_test import (
 )
 
 CHAT_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
+ALERT_WEBHOOK_URL = "https://hooks.slack.com/services/T000/B000/testing"
 
 TEAM_ID = "T12345678"
 USER_ID = "U87654321"
@@ -103,9 +105,19 @@ async def submit_view(
     github_client: FakeGitHubClient,
     metadata: TemplateVariablesModalMetadata,
     modal_values: dict[str, str],
+    alert_webhook: str | None = None,
 ) -> None:
     """Drive ``handle_view_submission`` against the fakes."""
     logger = structlog.get_logger("templatebot")
+    alert_client = (
+        SlackWebhookClient(
+            hook_url=alert_webhook,
+            application="templatebot",
+            logger=logger,
+        )
+        if alert_webhook is not None
+        else None
+    )
     async with httpx.AsyncClient() as http_client:
         service = SlackViewService(
             logger=logger,
@@ -118,6 +130,7 @@ async def submit_view(
             template_service=make_service(
                 http_client, github_client=github_client
             ),
+            slack_alert_client=alert_client,
         )
         await service.handle_view_submission(
             make_payload(metadata=metadata, modal_values=modal_values)
@@ -129,6 +142,7 @@ async def submit_failing_technote(
     *,
     trigger_channel_id: str | None = CHANNEL_ID,
     trigger_message_ts: str | None = MESSAGE_TS,
+    alert_webhook: str | None = None,
 ) -> None:
     """Submit a technote modal whose serial assignment is doomed to fail."""
     await submit_view(
@@ -143,6 +157,7 @@ async def submit_failing_technote(
             trigger_message_ts=trigger_message_ts,
         ),
         modal_values=dict(TECHNOTE_MODAL_VALUES),
+        alert_webhook=alert_webhook,
     )
 
 
@@ -264,6 +279,86 @@ async def test_failed_report_does_not_mask_the_original_error(
         for entry in logs
         if entry["event"].startswith("slack_failure_report")
     ] == ["slack_failure_report_update_failed", "slack_failure_report_failed"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_abandoned_project_alerts_the_operator(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """A configured webhook gets an alert naming the template, channel, and
+    user, so an operator learns about the loss without reading the logs.
+    """
+    github_client = FakeGitHubClient()
+    github_client.getiter_error = RuntimeError("GitHub is down")
+    respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    alert_route = respx_mock.post(ALERT_WEBHOOK_URL).mock(
+        return_value=httpx.Response(200, text="ok")
+    )
+
+    with pytest.raises(RuntimeError, match="GitHub is down"):
+        await submit_failing_technote(
+            github_client, alert_webhook=ALERT_WEBHOOK_URL
+        )
+
+    assert alert_route.call_count == 1
+    alert = alert_route.calls[-1].request.content.decode()
+    assert "technote_rst" in alert
+    assert CHANNEL_ID in alert
+    assert USER_ID in alert
+    assert "RuntimeError" in alert
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_no_alert_without_a_configured_webhook(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """Alerting is opt-in: with no webhook the failure path is unchanged."""
+    github_client = FakeGitHubClient()
+    github_client.getiter_error = RuntimeError("GitHub is down")
+    update_route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    alert_route = respx_mock.post(ALERT_WEBHOOK_URL).mock(
+        return_value=httpx.Response(200, text="ok")
+    )
+
+    with pytest.raises(RuntimeError, match="GitHub is down"):
+        await submit_failing_technote(github_client)
+
+    assert alert_route.call_count == 0
+    # The opening status update, then the user-facing report.
+    assert update_route.call_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_failing_alert_does_not_affect_the_user_report(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """A broken alert webhook must not cost the user their error message,
+    nor mask the error that abandoned the project.
+    """
+    github_client = FakeGitHubClient()
+    github_client.getiter_error = RuntimeError("GitHub is down")
+    update_route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    respx_mock.post(ALERT_WEBHOOK_URL).mock(
+        side_effect=httpx.ReadTimeout("timed out")
+    )
+
+    with pytest.raises(RuntimeError, match="GitHub is down"):
+        await submit_failing_technote(
+            github_client, alert_webhook=ALERT_WEBHOOK_URL
+        )
+
+    assert update_route.call_count == 2
+    report = update_route.calls[-1].request.content.decode()
+    assert "technote_rst" in report
 
 
 @pytest.mark.asyncio

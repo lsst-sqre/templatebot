@@ -260,6 +260,17 @@ class Config(BaseSettings):
 
     slack_app_id: str = Field(title="Slack app ID")
 
+    slack_alert_webhook: SecretStr | None = Field(
+        None,
+        title="Slack alert webhook URL",
+        description=(
+            "URL of a Slack incoming webhook used to alert operators about "
+            "terminal failures, such as a project creation that was "
+            "abandoned partway. When unset, operator alerting is disabled "
+            "and those failures are only recorded in the logs."
+        ),
+    )
+
     template_repo_url: HttpUrl = Field(
         description="URL of the template repository"
     )

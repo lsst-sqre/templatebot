@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from httpx import HTTPError
 from rubin.squarebot.models.kafka import SquarebotSlackViewSubmissionValue
+from safir.slack.blockkit import SlackCodeBlock, SlackMessage, SlackTextField
+from safir.slack.webhook import SlackWebhookClient
 from structlog.stdlib import BoundLogger
 
 from templatebot.constants import TEMPLATE_VARIABLES_MODAL_CALLBACK_ID
@@ -35,11 +37,13 @@ class SlackViewService:
         slack_client: SlackWebApiClient,
         repo_manager: RepoManager,
         template_service: TemplateService,
+        slack_alert_client: SlackWebhookClient | None = None,
     ) -> None:
         self._logger = logger
         self._slack_client = slack_client
         self._repo_manager = repo_manager
         self._template_service = template_service
+        self._slack_alert_client = slack_alert_client
 
     async def handle_view_submission(
         self, payload: SquarebotSlackViewSubmissionValue
@@ -167,9 +171,54 @@ class SlackViewService:
             error=str(error),
             error_type=type(error).__name__,
         )
-        # An optional operator alert belongs here, between the marker log and
-        # the user-facing report (see #118).
+        if self._slack_alert_client is not None:
+            # Safir's webhook client logs and swallows its own failures, so
+            # this cannot turn into a second error on the failure path and
+            # needs no guard of its own.
+            await self._slack_alert_client.post(
+                self._format_operator_alert(
+                    error=error, metadata=metadata, user_id=user_id
+                )
+            )
         await self._report_failure_to_user(error=error, metadata=metadata)
+
+    def _format_operator_alert(
+        self,
+        *,
+        error: Exception,
+        metadata: TemplateVariablesModalMetadata,
+        user_id: str,
+    ) -> SlackMessage:
+        """Compose the operator alert for an abandoned creation.
+
+        The alert names the request precisely enough to recreate it by hand:
+        which template, in which channel, for which user. The exception is
+        reported by type and message, matching the marker log; the traceback
+        stays in the application logs, where it cannot leak into a Slack
+        channel.
+        """
+        noun = "file" if metadata.type == "file" else "project"
+        channel = metadata.trigger_channel_id or "unknown"
+        return SlackMessage(
+            message=(
+                f"Abandoned {noun} creation from the "
+                f"`{metadata.template_name}` template."
+            ),
+            fields=[
+                SlackTextField(
+                    heading="Template", text=metadata.template_name
+                ),
+                SlackTextField(heading="Type", text=metadata.type),
+                SlackTextField(heading="Channel", text=channel),
+                SlackTextField(heading="User", text=user_id),
+            ],
+            blocks=[
+                SlackCodeBlock(
+                    heading="Exception",
+                    code=f"{type(error).__name__}: {error!s}",
+                )
+            ],
+        )
 
     async def _report_failure_to_user(
         self,
