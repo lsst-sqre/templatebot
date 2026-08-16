@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from structlog.stdlib import BoundLogger
 
 from ..retry import retry_async
+from ._exceptions import SlackApiError
 from ._models import SlackChatPostMessageRequest, SlackChatUpdateMessageRequest
 from .views import SlackModalView
 
@@ -94,6 +95,9 @@ class SlackWebApiClient:
         httpx.HTTPStatusError
             Raised if the request still fails after the retries are
             exhausted.
+        SlackApiError
+            Raised if Slack accepts the request but rejects the call with
+            ``ok: false``.
 
         Notes
         -----
@@ -117,15 +121,7 @@ class SlackWebApiClient:
         r = await retry_async(
             send, logger=self._logger.bind(slack_method=method)
         )
-        resp_json = r.json()
-        if not resp_json["ok"]:
-            self._logger.error(
-                "Failed to send Slack message",
-                response=resp_json,
-                status_code=r.status_code,
-                message=body,
-            )
-        return resp_json
+        return self._parse_response(r, method=method, body=body)
 
     async def get(
         self, *, method: str, params: dict[str, Any] | None = None
@@ -150,6 +146,9 @@ class SlackWebApiClient:
         httpx.HTTPStatusError
             Raised if the request still fails after the retries are
             exhausted.
+        SlackApiError
+            Raised if Slack accepts the request but rejects the call with
+            ``ok: false``.
 
         Notes
         -----
@@ -170,7 +169,27 @@ class SlackWebApiClient:
         r = await retry_async(
             send, logger=self._logger.bind(slack_method=method)
         )
-        return r.json()
+        return self._parse_response(r, method=method, body=params or {})
+
+    def _parse_response(
+        self, r: Response, *, method: str, body: dict[str, Any]
+    ) -> dict:
+        """Decode a Slack response, raising if Slack rejected the call.
+
+        Slack reports application-level failures with an HTTP 200 carrying
+        ``{"ok": false}``, so this check has to happen after
+        `~templatebot.storage.retry.retry_async` rather than inside the
+        retried call: the transport succeeded, and re-issuing the request
+        would only be rejected again.
+        """
+        resp_json = r.json()
+        if not resp_json.get("ok", False):
+            raise SlackApiError(
+                method=method,
+                error=resp_json.get("error", "unknown_error"),
+                body=body,
+            )
+        return resp_json
 
     def _format_url(self, method: str) -> str:
         """Format a URL for a Slack Web API endpoint."""
