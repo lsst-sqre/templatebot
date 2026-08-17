@@ -18,6 +18,7 @@ env:
       - "dependabot/**"
       - "gh-readonly-queue/**"
       - "renovate/**"
+      - "t/**"
       - "tickets/**"
       - "u/**"
     tags:
@@ -59,6 +60,9 @@ jobs:
         run: uv run --only-group=nox nox -s typing test-coverage
 
   build:
+    concurrency:
+      group: docker
+      queue: max
     needs: [lint, test]
     secrets: inherit
     uses: lsst-sqre/multiplatform-build-and-push/.github/workflows/build.yaml@v4
@@ -68,7 +72,8 @@ jobs:
       # available and we don't want dependency-bump images in the registry.
       push: >-
         ${{ (github.event_name == 'release' && github.event.action == 'published')
-            || startsWith(github.head_ref, 'tickets/') }}
+            || startsWith(github.head_ref, 'tickets/')
+            || startsWith(github.head_ref, 't/') }}
 
     # Build on releases, ticket-branch PRs (build + push), and dependabot PRs
     # (build only) so the required "build / manifest" check is reported.
@@ -79,4 +84,5 @@ jobs:
       (github.event_name == 'release' && github.event.action == 'published')
       || (github.event_name != 'merge_group'
           && (startsWith(github.head_ref, 'tickets/')
+              || startsWith(github.head_ref, 't/')
               || startsWith(github.head_ref, 'dependabot/')))
