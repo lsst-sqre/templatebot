@@ -5,6 +5,7 @@ from typing import Self
 
 import structlog
 from httpx import AsyncClient, Timeout
+from safir.slack.webhook import SlackWebhookClient
 from structlog.stdlib import BoundLogger
 
 from templatebot.services.slackblockactions import SlackBlockActionsService
@@ -96,6 +97,33 @@ class Factory:
             logger=self._logger,
         )
 
+    def create_slack_alert_client(self) -> SlackWebhookClient | None:
+        """Create a Slack webhook client for operator alerts.
+
+        Returns
+        -------
+        safir.slack.webhook.SlackWebhookClient or None
+            A client that posts to the configured alert webhook, or `None`
+            when `~templatebot.config.Config.slack_alert_webhook` is unset.
+            Alerting is opt-in so that the app runs unchanged without the
+            secret; callers treat `None` as "do not alert".
+
+        Notes
+        -----
+        This client does not use the shared HTTP client from the process
+        context: Safir's ``SlackWebhookClient`` gets its own client from
+        ``safir.dependencies.http_client.http_client_dependency``. It also
+        logs and swallows any error posting the message, so an alert can
+        never turn into a second failure for the caller to handle.
+        """
+        if config.slack_alert_webhook is None:
+            return None
+        return SlackWebhookClient(
+            hook_url=config.slack_alert_webhook,
+            application=config.name,
+            logger=self._logger,
+        )
+
     def create_github_client_factory(self) -> GitHubAppClientFactory:
         """Create a new GitHub client factory."""
         return GitHubAppClientFactory(
@@ -138,6 +166,7 @@ class Factory:
             slack_client=self.create_slack_web_client(),
             repo_manager=self._process_context.repo_manager,
             template_service=self.create_template_service(),
+            slack_alert_client=self.create_slack_alert_client(),
         )
 
     def create_template_repo_service(self) -> TemplateRepoService:

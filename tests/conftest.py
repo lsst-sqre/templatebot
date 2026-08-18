@@ -5,12 +5,28 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import httpx
+import pytest
 import pytest_asyncio
 from asgi_lifespan import LifespanManager
 from faststream_fastapi import FastStreamAPI
 from httpx import AsyncClient
 
 from templatebot import main
+
+
+@pytest.fixture
+def _no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the retry helper's backoff instantaneous.
+
+    Any test that drives a call through
+    `~templatebot.storage.retry.retry_async` to exhaustion would otherwise
+    wait out the real exponential backoff.
+    """
+
+    async def fake_sleep(delay: float) -> None:
+        return
+
+    monkeypatch.setattr("templatebot.storage.retry._sleep", fake_sleep)
 
 
 @pytest_asyncio.fixture

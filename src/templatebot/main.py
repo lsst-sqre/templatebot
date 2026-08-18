@@ -13,6 +13,7 @@ from importlib.metadata import metadata, version
 
 from fastapi import FastAPI
 from faststream_fastapi import FastStreamAPI
+from safir.dependencies.http_client import http_client_dependency
 from safir.logging import configure_logging, configure_uvicorn_logging
 from safir.middleware.x_forwarded import XForwardedMiddleware
 from structlog import get_logger
@@ -46,6 +47,10 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
 
     # Any code here will be run when the application shuts down.
     await consumer_context_dependency.aclose()
+    # Templatebot's own HTTP client lives in the process context, but Safir's
+    # SlackWebhookClient (used for operator alerts) creates its own through
+    # this dependency, and only the lifespan can close it.
+    await http_client_dependency.aclose()
 
 
 configure_logging(
