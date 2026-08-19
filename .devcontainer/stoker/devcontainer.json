@@ -1,4 +1,4 @@
-// stoker-managed: sandbox:stoker/devcontainer.json:7e0574fc810f5453
+// stoker-managed: sandbox:stoker/devcontainer.json:1352b13c8660764b
 {
   "name": "stoker-default-lsst-sqre-templatebot",
   "build": {
