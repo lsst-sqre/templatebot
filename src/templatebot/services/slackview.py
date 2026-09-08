@@ -315,7 +315,11 @@ class SlackViewService:
         rather than the expanded cookiecutter variables, so the block pastes
         straight back into a second attempt.
         """
-        values = "```\n" + json.dumps(modal_values, indent=2) + "\n```"
+        values = (
+            "```\n"
+            + json.dumps(modal_values, indent=2, ensure_ascii=False)
+            + "\n```"
+        )
         return SlackSectionBlock(text=SlackMrkdwnTextObject(text=values))
 
     async def _report_abandoned_creation(

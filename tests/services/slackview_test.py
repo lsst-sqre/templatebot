@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Literal, cast
 
 import httpx
@@ -170,6 +171,7 @@ async def submit_author_lookup_technote(
     trigger_channel_id: str | None = CHANNEL_ID,
     trigger_message_ts: str | None = MESSAGE_TS,
     alert_webhook: str | None = None,
+    modal_values: dict[str, str] | None = None,
 ) -> None:
     """Submit a technote modal naming an author ID.
 
@@ -187,7 +189,9 @@ async def submit_author_lookup_technote(
             trigger_channel_id=trigger_channel_id,
             trigger_message_ts=trigger_message_ts,
         ),
-        modal_values=dict(AUTHOR_MODAL_VALUES),
+        modal_values=dict(AUTHOR_MODAL_VALUES)
+        if modal_values is None
+        else modal_values,
         alert_webhook=alert_webhook,
     )
 
@@ -219,6 +223,32 @@ async def test_unknown_author_id_is_answered_with_guidance(
     # The submitted modal values, dumped for the user to paste into a retry.
     assert "A test technote" in report
     assert "Sorry, something went wrong" not in report
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_submitted_values_keep_non_ascii_characters(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The values dump exists to be pasted back into a retry, so an accented
+    name or a smart quote must come through as typed, not as a JSON unicode
+    escape the user would paste back literally.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
+    route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    title = "Zo\u00eb\u2019s technote"
+
+    await submit_author_lookup_technote(
+        modal_values=AUTHOR_MODAL_VALUES | {"title": title}
+    )
+
+    report = json.loads(route.calls[-1].request.content)
+    values_block = report["blocks"][-1]["text"]["text"]
+    assert title in values_block
+    assert "\\u00eb" not in values_block
+    assert "\\u2019" not in values_block
 
 
 @pytest.mark.asyncio
