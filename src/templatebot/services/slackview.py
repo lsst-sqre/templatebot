@@ -16,7 +16,10 @@ from safir.slack.webhook import SlackWebhookClient
 from structlog.stdlib import BoundLogger
 
 from templatebot.constants import TEMPLATE_VARIABLES_MODAL_CALLBACK_ID
-from templatebot.storage.authordb import AuthorNotFoundError
+from templatebot.storage.authordb import (
+    AuthorNotFoundError,
+    AuthorServiceError,
+)
 from templatebot.storage.repo import RepoManager
 from templatebot.storage.slack import (
     SlackApiError,
@@ -106,28 +109,7 @@ class SlackViewService:
         templates_repo = self._repo_manager.get_repo(private_metadata.git_ref)
         template = templates_repo[private_metadata.template_name]
 
-        # Extract the variables from the submission. Note that the submission
-        # values aren't the same as the template variables because templatekit
-        # offers compuound variables like preset_groups and preset_options
-        # that effectively set multiple cookiecutter template variables
-        # based on a modal value. The Template service is responsible for
-        # translating these submission values into template variables.
-        modal_values: dict[str, str] = {}
-        for block_state in payload.view["state"]["values"].values():
-            for action_id, action_state in block_state.items():
-                if action_state["type"] == "plain_text_input":
-                    modal_values[action_id] = action_state["value"]
-                elif action_state["type"] == "static_select":
-                    modal_values[action_id] = action_state["selected_option"][
-                        "value"
-                    ]
-                else:
-                    self._logger.warning(
-                        "Unhandled action type in view submission",
-                        action_id=action_id,
-                        action_type=action_state["type"],
-                        action_state=action_state,
-                    )
+        modal_values = self._extract_modal_values(payload)
 
         # This is the seam where a terminal failure becomes visible. It is
         # the outermost place that still knows which Slack message triggered
@@ -161,6 +143,21 @@ class SlackViewService:
                 modal_values=modal_values,
                 user_id=payload.user.id,
             )
+        except AuthorServiceError as e:
+            # The author database never answered, so nothing is known about
+            # the author ID: sending the user to the author list would waste
+            # their time on an ID that is probably fine. The operator side is
+            # unchanged, though -- an outage really is an incident -- and the
+            # error is re-raised so FastStream logs the traceback.
+            await self._report_abandoned_creation(
+                error=e,
+                metadata=private_metadata,
+                user_id=payload.user.id,
+                user_message=self._format_author_service_error_message(
+                    metadata=private_metadata, modal_values=modal_values
+                ),
+            )
+            raise
         except Exception as e:
             await self._report_abandoned_creation(
                 error=e,
@@ -168,6 +165,36 @@ class SlackViewService:
                 user_id=payload.user.id,
             )
             raise
+
+    def _extract_modal_values(
+        self, payload: SquarebotSlackViewSubmissionValue
+    ) -> dict[str, str]:
+        """Flatten a view submission's block state into a value per action.
+
+        Note that these submission values aren't the same as the template
+        variables, because templatekit offers compound variables like
+        preset_groups and preset_options that effectively set multiple
+        cookiecutter template variables based on one modal value. The
+        template service is responsible for translating these submission
+        values into template variables.
+        """
+        modal_values: dict[str, str] = {}
+        for block_state in payload.view["state"]["values"].values():
+            for action_id, action_state in block_state.items():
+                if action_state["type"] == "plain_text_input":
+                    modal_values[action_id] = action_state["value"]
+                elif action_state["type"] == "static_select":
+                    modal_values[action_id] = action_state["selected_option"][
+                        "value"
+                    ]
+                else:
+                    self._logger.warning(
+                        "Unhandled action type in view submission",
+                        action_id=action_id,
+                        action_type=action_state["type"],
+                        action_state=action_state,
+                    )
+        return modal_values
 
     async def _report_author_not_found(
         self,
@@ -259,9 +286,8 @@ class SlackViewService:
         """Compose the Slack message that tells the user how to fix an
         unknown author ID.
 
-        The submitted values are dumped as raw modal values -- what the user
-        actually typed -- rather than the expanded cookiecutter variables, so
-        that the block can be pasted straight back into a second attempt.
+        The submitted values are dumped for the user to paste into a retry,
+        the same as on every other failure path through this seam.
         """
         noun = "file" if metadata.type == "file" else "project"
         text = (
@@ -275,12 +301,22 @@ class SlackViewService:
             f"\n\nNo {noun} was created. Here are the values you submitted, "
             "so you can paste them back in when you try again:"
         )
-        values = "```\n" + json.dumps(modal_values, indent=2) + "\n```"
-        blocks: list[SlackBlock] = [
+        return text, [
             SlackSectionBlock(text=SlackMrkdwnTextObject(text=guidance)),
-            SlackSectionBlock(text=SlackMrkdwnTextObject(text=values)),
+            self._submitted_values_block(modal_values),
         ]
-        return text, blocks
+
+    def _submitted_values_block(
+        self, modal_values: dict[str, str]
+    ) -> SlackBlock:
+        """Dump the values a user submitted into a fenced code block.
+
+        These are the raw modal values -- what the user actually typed --
+        rather than the expanded cookiecutter variables, so the block pastes
+        straight back into a second attempt.
+        """
+        values = "```\n" + json.dumps(modal_values, indent=2) + "\n```"
+        return SlackSectionBlock(text=SlackMrkdwnTextObject(text=values))
 
     async def _report_abandoned_creation(
         self,
@@ -288,6 +324,7 @@ class SlackViewService:
         error: Exception,
         metadata: TemplateVariablesModalMetadata,
         user_id: str,
+        user_message: tuple[str, list[SlackBlock]] | None = None,
     ) -> None:
         """Record and report a creation attempt that was abandoned partway.
 
@@ -307,6 +344,11 @@ class SlackViewService:
             Slack message that triggered it.
         user_id
             The Slack ID of the user whose submission was lost.
+        user_message
+            The text and blocks to show the user, for a failure that has a
+            more useful account than "something went wrong". Defaults to the
+            generic abandoned-creation message. The operator side of the
+            report is the same either way.
         """
         # The traceback is deliberately left to the re-raise in the caller,
         # which FastStream logs; this event is the searchable marker that
@@ -330,10 +372,38 @@ class SlackViewService:
                     error=error, metadata=metadata, user_id=user_id
                 )
             )
-        text, blocks = self._format_failure_message(
+        text, blocks = user_message or self._format_failure_message(
             error=error, metadata=metadata
         )
         await self._report_to_user(text=text, blocks=blocks, metadata=metadata)
+
+    def _format_author_service_error_message(
+        self,
+        *,
+        metadata: TemplateVariablesModalMetadata,
+        modal_values: dict[str, str],
+    ) -> tuple[str, list[SlackBlock]]:
+        """Compose the Slack message for an author database that could not
+        be reached.
+
+        The lookup never got an answer, so this message says nothing about
+        the author ID that was submitted: it is probably fine, and it is not
+        the user's to fix either way. What the message does say is that the
+        request is gone and worth retrying later, and it hands the submitted
+        values back so that retry is a paste rather than a retype.
+        """
+        noun = "file" if metadata.type == "file" else "project"
+        text = "I couldn't reach the author database."
+        detail = (
+            f"{text}\n\nNo {noun} was created, and your submission wasn't "
+            "saved, so please try again later. If it keeps happening, report "
+            "it in #dm-square.\n\nHere are the values you submitted, so you "
+            "can paste them back in when you try again:"
+        )
+        return text, [
+            SlackSectionBlock(text=SlackMrkdwnTextObject(text=detail)),
+            self._submitted_values_block(modal_values),
+        ]
 
     def _format_operator_alert(
         self,

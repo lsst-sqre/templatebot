@@ -18,8 +18,8 @@ from templatebot.factory import ProcessContext
 from templatebot.handlers.kafka import kafka_broker
 from templatebot.storage.repo import RepoManager
 from tests.services.slackview_test import (
-    UNKNOWN_AUTHOR_MODAL_VALUES,
-    UNKNOWN_AUTHOR_URL,
+    AUTHOR_LOOKUP_URL,
+    AUTHOR_MODAL_VALUES,
     FakeRepoManager,
     make_metadata,
     make_payload,
@@ -62,7 +62,7 @@ async def test_view_submission_survives_an_unknown_author_id(
     Driving this through the broker exercises the real `Factory` wiring that
     the service-level tests replace with hand-built fakes.
     """
-    respx_mock.get(UNKNOWN_AUTHOR_URL).mock(return_value=httpx.Response(404))
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
     update_route = respx_mock.post(CHAT_UPDATE_URL).mock(
         return_value=httpx.Response(200, json=OK)
     )
@@ -70,7 +70,7 @@ async def test_view_submission_survives_an_unknown_author_id(
         metadata=make_metadata(
             template_name="technote_rst", template_type="project"
         ),
-        modal_values=dict(UNKNOWN_AUTHOR_MODAL_VALUES),
+        modal_values=dict(AUTHOR_MODAL_VALUES),
     )
 
     await consumer_context_dependency.initialize()
