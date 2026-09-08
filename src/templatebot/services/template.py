@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,7 +9,6 @@ from typing import Any
 
 from cookiecutter.main import cookiecutter
 from httpx import AsyncClient, HTTPError
-from pydantic import ValidationError
 from structlog.stdlib import BoundLogger
 from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 
@@ -251,55 +249,13 @@ class TemplateService:
         )
 
         # Expand the author_id variable into full author information, if
-        # present.
-        try:
-            await self._expand_author_id_variable(template_values)
-        except HTTPError, ValidationError:
-            error_message = (
-                "I couldn't find information for "
-                f"author ID `{template_values.get('author_id')}`.\n\n"
-                "Check <https://docs.google.com/spreadsheets/d/"
-                "1_zXLp7GaIJnzihKsyEAz298_xdbrgxRgZ1_86kwhGPY/"
-                "edit?pli=1&gid=0#gid=0|the author list> for the correct "
-                "author ID, or <https://github.com/lsst/lsst-texmf/"
-                "edit/main/etc/authordb.yaml|create a pull request to "
-                "https://github.com/lsst/lsst-texmf for `etc/authordb.yaml`>."
-            )
-
-            await self._post_status_update(
-                channel_id=trigger_channel_id,
-                message_ts=trigger_message_ts,
-                text="There was an error retrieving author information.",
-                blocks=[
-                    SlackSectionBlock(
-                        type="section",
-                        fields=None,
-                        accessory=None,
-                        text=SlackMrkdwnTextObject(
-                            type="mrkdwn",
-                            verbatim=False,
-                            text=error_message,
-                        ),
-                    ),
-                    SlackSectionBlock(
-                        type="section",
-                        fields=None,
-                        accessory=None,
-                        text=SlackMrkdwnTextObject(
-                            type="mrkdwn",
-                            verbatim=False,
-                            text=(
-                                "Here's your submitted template "
-                                "values for reference:\n\n"
-                                "```\n"
-                                + json.dumps(template_values, indent=2)
-                                + "\n```"
-                            ),
-                        ),
-                    ),
-                ],
-            )
-            raise
+        # present. A failed lookup raises
+        # `~templatebot.storage.authordb.AuthorNotFoundError` or
+        # `~templatebot.storage.authordb.AuthorServiceError`, both of which
+        # propagate untouched: the view service's seam owns the user-facing
+        # failure message, and a second writer here would only race it for
+        # the same trigger message.
+        await self._expand_author_id_variable(template_values)
 
         # Variables for LSST the Docs registration
         ltd_slug: str | None = None
@@ -576,13 +532,20 @@ class TemplateService:
     ) -> None:
         """Expand the author_id variable into full author information
         from lsst-texmf's authordb.yaml.
+
+        Raises
+        ------
+        templatebot.storage.authordb.AuthorNotFoundError
+            Raised if the author database has no entry for the submitted
+            author ID.
+        templatebot.storage.authordb.AuthorServiceError
+            Raised if the author database could not be consulted.
         """
         author_id = template_values.get("author_id")
         if not author_id:
             return
 
-        authordb = AuthorDb(self._http_client)
-        # TODO(jonathansick): handle missing author_id with Slack message
+        authordb = AuthorDb(self._http_client, self._logger)
         author_info = await authordb.get_author(author_id)
 
         template_values["first_author_given"] = author_info.given_name or ""

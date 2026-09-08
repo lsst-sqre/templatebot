@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Literal, cast
 
 import httpx
@@ -18,6 +19,7 @@ from templatekit.repo import BaseTemplate, FileTemplate, ProjectTemplate
 from templatebot.constants import TEMPLATE_VARIABLES_MODAL_CALLBACK_ID
 from templatebot.services.slackview import SlackViewService
 from templatebot.services.template import TemplateService
+from templatebot.storage.authordb import AuthorServiceError
 from templatebot.storage.repo import RepoManager
 from templatebot.storage.slack import SlackWebApiClient
 from templatebot.storage.slack.variablesmodal import (
@@ -35,6 +37,7 @@ from tests.services.template_test import (
 
 CHAT_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 ALERT_WEBHOOK_URL = "https://hooks.slack.com/services/T000/B000/testing"
+AUTHOR_LOOKUP_URL = "https://roundtable.lsst.cloud/ook/authors/nobody"
 
 TEAM_ID = "T12345678"
 USER_ID = "U87654321"
@@ -44,6 +47,8 @@ TECHNOTE_MODAL_VALUES = {
     "description": "Testing the failure path.",
     "Series": "test",
 }
+
+AUTHOR_MODAL_VALUES = TECHNOTE_MODAL_VALUES | {"author_id": "nobody"}
 
 
 class FakeRepoManager:
@@ -161,6 +166,297 @@ async def submit_failing_technote(
     )
 
 
+async def submit_author_lookup_technote(
+    *,
+    trigger_channel_id: str | None = CHANNEL_ID,
+    trigger_message_ts: str | None = MESSAGE_TS,
+    alert_webhook: str | None = None,
+    modal_values: dict[str, str] | None = None,
+) -> None:
+    """Submit a technote modal naming an author ID.
+
+    How the lookup of that ID turns out is the caller's to decide with a
+    respx route on `AUTHOR_LOOKUP_URL`.
+    """
+    await submit_view(
+        template=ProjectTemplate(
+            str(TEMPLATES_DIR / "project_templates" / "technote_rst")
+        ),
+        github_client=FakeGitHubClient(),
+        metadata=make_metadata(
+            template_name="technote_rst",
+            template_type="project",
+            trigger_channel_id=trigger_channel_id,
+            trigger_message_ts=trigger_message_ts,
+        ),
+        modal_values=dict(AUTHOR_MODAL_VALUES)
+        if modal_values is None
+        else modal_values,
+        alert_webhook=alert_webhook,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_unknown_author_id_is_answered_with_guidance(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """A mistyped author ID is the user's to fix, so the seam replaces the
+    trigger message with instructions -- exactly once, and without the
+    generic apology -- and lets the submission end quietly.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
+    route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+
+    await submit_author_lookup_technote()
+
+    # The opening status update, then the guidance -- and nothing after it.
+    assert route.call_count == 2
+    report = route.calls[-1].request.content.decode()
+    assert "nobody" in report
+    # The author list spreadsheet and the lsst-texmf pull request.
+    assert "1_zXLp7GaIJnzihKsyEAz298_xdbrgxRgZ1_86kwhGPY" in report
+    assert "lsst/lsst-texmf" in report
+    assert "authordb.yaml" in report
+    # The submitted modal values, dumped for the user to paste into a retry.
+    assert "A test technote" in report
+    assert "Sorry, something went wrong" not in report
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_submitted_values_keep_non_ascii_characters(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The values dump exists to be pasted back into a retry, so an accented
+    name or a smart quote must come through as typed, not as a JSON unicode
+    escape the user would paste back literally.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
+    route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    title = "Zo\u00eb\u2019s technote"
+
+    await submit_author_lookup_technote(
+        modal_values=AUTHOR_MODAL_VALUES | {"title": title}
+    )
+
+    report = json.loads(route.calls[-1].request.content)
+    values_block = report["blocks"][-1]["text"]["text"]
+    assert title in values_block
+    assert "\\u00eb" not in values_block
+    assert "\\u2019" not in values_block
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_unknown_author_id_alerts_the_operator_softly(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The operator alert names the author ID without dressing a user's typo
+    up as an incident: no exception block, no abandoned-creation wording.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
+    respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    alert_route = respx_mock.post(ALERT_WEBHOOK_URL).mock(
+        return_value=httpx.Response(200, text="ok")
+    )
+
+    await submit_author_lookup_technote(alert_webhook=ALERT_WEBHOOK_URL)
+
+    assert alert_route.call_count == 1
+    alert = alert_route.calls[-1].request.content.decode()
+    assert "could not find author ID" in alert
+    assert "nobody" in alert
+    assert "technote_rst" in alert
+    assert CHANNEL_ID in alert
+    assert USER_ID in alert
+    assert "Exception" not in alert
+    assert "Abandoned" not in alert
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_unknown_author_id_logs_a_warning_not_an_incident(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The marker log for a missing author ID is its own warning-level event,
+    so an operator scanning for abandoned creations never trips over one.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
+    respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+
+    with capture_logs() as logs:
+        await submit_author_lookup_technote()
+
+    markers = [
+        entry for entry in logs if entry["event"] == "author_id_not_found"
+    ]
+    assert len(markers) == 1
+    assert markers[0]["log_level"] == "warning"
+    assert markers[0]["author_id"] == "nobody"
+    assert markers[0]["template"] == "technote_rst"
+    assert markers[0]["template_type"] == "project"
+    assert markers[0]["channel"] == CHANNEL_ID
+    assert markers[0]["message_ts"] == MESSAGE_TS
+    assert markers[0]["user"] == USER_ID
+    assert not [
+        entry
+        for entry in logs
+        if entry["event"] == "project_creation_abandoned"
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_author_guidance_falls_back_to_a_new_message(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """Guidance the user cannot see is no guidance, so a ``chat.update``
+    that fails every retry falls back to a new message in the channel.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
+    respx_mock.post(CHAT_UPDATE_URL).mock(
+        side_effect=httpx.ReadTimeout("timed out")
+    )
+    post_route = respx_mock.post(CHAT_POST_MESSAGE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+
+    await submit_author_lookup_technote()
+
+    assert post_route.call_count == 1
+    report = post_route.calls[-1].request.content.decode()
+    assert CHANNEL_ID in report
+    assert "nobody" in report
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_author_guidance_without_a_configured_webhook(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """Alerting is opt-in here too: with no webhook the user still gets their
+    guidance and the operator still gets the log.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(404))
+    update_route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    alert_route = respx_mock.post(ALERT_WEBHOOK_URL).mock(
+        return_value=httpx.Response(200, text="ok")
+    )
+
+    with capture_logs() as logs:
+        await submit_author_lookup_technote()
+
+    assert alert_route.call_count == 0
+    # The opening status update, then the guidance.
+    assert update_route.call_count == 2
+    assert "nobody" in update_route.calls[-1].request.content.decode()
+    assert [entry for entry in logs if entry["event"] == "author_id_not_found"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_author_service_outage_asks_the_user_to_try_again(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """An author database that never answers says nothing about the author
+    ID, so the user is asked to try again later rather than sent off to
+    check an ID that is probably fine.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(500))
+    route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+
+    with pytest.raises(AuthorServiceError):
+        await submit_author_lookup_technote()
+
+    # The opening status update, then the report -- and nothing after it.
+    assert route.call_count == 2
+    report = route.calls[-1].request.content.decode()
+    assert "author database" in report
+    assert "try again later" in report
+    # The submitted modal values, dumped for the user to paste into a retry.
+    assert "A test technote" in report
+    # None of the not-found guidance: there is nothing for the user to fix.
+    assert "author ID" not in report
+    assert "docs.google.com" not in report
+    assert "lsst-texmf" not in report
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_author_service_outage_alerts_the_operator_fully(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """The gentler message to the user buys the operator nothing: an
+    unreachable author database is a real incident and gets the full
+    abandoned-creation alert, exception block and all.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(500))
+    respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+    alert_route = respx_mock.post(ALERT_WEBHOOK_URL).mock(
+        return_value=httpx.Response(200, text="ok")
+    )
+
+    with pytest.raises(AuthorServiceError):
+        await submit_author_lookup_technote(alert_webhook=ALERT_WEBHOOK_URL)
+
+    assert alert_route.call_count == 1
+    alert = alert_route.calls[-1].request.content.decode()
+    assert "Abandoned" in alert
+    assert "Exception" in alert
+    assert "AuthorServiceError" in alert
+    assert "technote_rst" in alert
+    assert CHANNEL_ID in alert
+    assert USER_ID in alert
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_no_retry_sleep")
+async def test_author_service_outage_is_logged_as_an_abandoned_creation(
+    respx_mock: respx.MockRouter,
+) -> None:
+    """An outage loses a submission like any other terminal failure, so it
+    keeps the error-level marker and propagates for FastStream's traceback.
+    """
+    respx_mock.get(AUTHOR_LOOKUP_URL).mock(return_value=httpx.Response(500))
+    respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
+    )
+
+    with capture_logs() as logs, pytest.raises(AuthorServiceError):
+        await submit_author_lookup_technote()
+
+    markers = [
+        entry
+        for entry in logs
+        if entry["event"] == "project_creation_abandoned"
+    ]
+    assert len(markers) == 1
+    assert markers[0]["log_level"] == "error"
+    assert markers[0]["error_type"] == "AuthorServiceError"
+    assert markers[0]["template"] == "technote_rst"
+    assert markers[0]["channel"] == CHANNEL_ID
+    assert markers[0]["user"] == USER_ID
+    # Nothing here says the author ID was wrong; it was never looked up.
+    assert not [
+        entry for entry in logs if entry["event"] == "author_id_not_found"
+    ]
+
+
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_no_retry_sleep")
 async def test_abandoned_project_is_reported_to_the_channel(
@@ -185,6 +481,9 @@ async def test_abandoned_project_is_reported_to_the_channel(
     assert CHANNEL_ID in report
     assert MESSAGE_TS in report
     assert "technote_rst" in report
+    # A failure with no better account of itself keeps the generic message.
+    assert "Sorry, something went wrong" in report
+    assert "RuntimeError" in report
 
 
 @pytest.mark.asyncio
