@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import json
+
 from httpx import HTTPError
 from rubin.squarebot.models.kafka import SquarebotSlackViewSubmissionValue
-from safir.slack.blockkit import SlackCodeBlock, SlackMessage, SlackTextField
+from safir.slack.blockkit import (
+    SlackBaseField,
+    SlackCodeBlock,
+    SlackMessage,
+    SlackTextField,
+)
 from safir.slack.webhook import SlackWebhookClient
 from structlog.stdlib import BoundLogger
 
 from templatebot.constants import TEMPLATE_VARIABLES_MODAL_CALLBACK_ID
+from templatebot.storage.authordb import AuthorNotFoundError
 from templatebot.storage.repo import RepoManager
 from templatebot.storage.slack import (
     SlackApiError,
@@ -26,6 +34,21 @@ from templatebot.storage.slack.variablesmodal import (
 )
 
 from .template import TemplateService
+
+AUTHOR_LIST_URL = (
+    "https://docs.google.com/spreadsheets/d/"
+    "1_zXLp7GaIJnzihKsyEAz298_xdbrgxRgZ1_86kwhGPY/edit?pli=1&gid=0#gid=0"
+)
+"""The author list spreadsheet, where a user can look up their author ID."""
+
+AUTHORDB_EDIT_URL = (
+    "https://github.com/lsst/lsst-texmf/edit/main/etc/authordb.yaml"
+)
+"""GitHub's editor for lsst-texmf's ``etc/authordb.yaml``.
+
+Opening this URL starts a pull request adding an author, which is the only
+way a missing author ID gets fixed.
+"""
 
 
 class SlackViewService:
@@ -124,6 +147,20 @@ class SlackViewService:
                     trigger_message_ts=private_metadata.trigger_message_ts,
                     trigger_channel_id=private_metadata.trigger_channel_id,
                 )
+        except AuthorNotFoundError as e:
+            # A typo, or an author who is not in lsst-texmf yet. The
+            # submission is just as lost as any other failure, but the fix
+            # belongs to the user, so they get instructions instead of an
+            # apology and the operator gets a soft alert instead of an
+            # incident. Returning normally keeps a user's typo out of
+            # FastStream's traceback log; the offset was committed before
+            # this handler ran either way.
+            await self._report_author_not_found(
+                error=e,
+                metadata=private_metadata,
+                modal_values=modal_values,
+                user_id=payload.user.id,
+            )
         except Exception as e:
             await self._report_abandoned_creation(
                 error=e,
@@ -131,6 +168,119 @@ class SlackViewService:
                 user_id=payload.user.id,
             )
             raise
+
+    async def _report_author_not_found(
+        self,
+        *,
+        error: AuthorNotFoundError,
+        metadata: TemplateVariablesModalMetadata,
+        modal_values: dict[str, str],
+        user_id: str,
+    ) -> None:
+        """Tell the user how to fix an author ID the author database does
+        not know, and let the operator know it happened.
+
+        This is the only writer of a failure message for this case: the
+        template service leaves the exception untouched precisely so that
+        one message, written here, wins the trigger message.
+
+        Parameters
+        ----------
+        error
+            The lookup failure, carrying the author ID that was not found.
+        metadata
+            The modal's private metadata, carrying the template name and the
+            Slack message that triggered it.
+        modal_values
+            The values the user submitted, echoed back so they can be pasted
+            into a retry.
+        user_id
+            The Slack ID of the user whose submission was lost.
+        """
+        # Warning, not error: nothing is broken, and no operator has to act.
+        self._logger.warning(
+            "author_id_not_found",
+            template=metadata.template_name,
+            template_type=metadata.type,
+            channel=metadata.trigger_channel_id,
+            message_ts=metadata.trigger_message_ts,
+            user=user_id,
+            author_id=error.author_id,
+        )
+        if self._slack_alert_client is not None:
+            # Safir's webhook client logs and swallows its own failures, so
+            # this cannot turn into a second error on the failure path and
+            # needs no guard of its own.
+            await self._slack_alert_client.post(
+                self._format_author_not_found_alert(
+                    error=error, metadata=metadata, user_id=user_id
+                )
+            )
+        text, blocks = self._format_author_not_found_message(
+            error=error, metadata=metadata, modal_values=modal_values
+        )
+        await self._report_to_user(text=text, blocks=blocks, metadata=metadata)
+
+    def _format_author_not_found_alert(
+        self,
+        *,
+        error: AuthorNotFoundError,
+        metadata: TemplateVariablesModalMetadata,
+        user_id: str,
+    ) -> SlackMessage:
+        """Compose the soft operator alert for an author ID that was not
+        found.
+
+        Unlike `_format_operator_alert` this carries no exception block: the
+        lookup worked and gave a definite answer, so there is no failure for
+        an operator to investigate. The alert exists only so the team can
+        notice a pattern -- an author who keeps being asked for and is still
+        missing from lsst-texmf.
+        """
+        noun = "file" if metadata.type == "file" else "project"
+        channel = metadata.trigger_channel_id or "unknown"
+        return SlackMessage(
+            message=(
+                f"Templatebot could not find author ID `{error.author_id}` "
+                f"for a `{metadata.template_name}` {noun} requested by "
+                f"{user_id} in {channel}. The user was told how to find or "
+                "add the author ID."
+            ),
+            fields=self._alert_fields(metadata=metadata, user_id=user_id),
+        )
+
+    def _format_author_not_found_message(
+        self,
+        *,
+        error: AuthorNotFoundError,
+        metadata: TemplateVariablesModalMetadata,
+        modal_values: dict[str, str],
+    ) -> tuple[str, list[SlackBlock]]:
+        """Compose the Slack message that tells the user how to fix an
+        unknown author ID.
+
+        The submitted values are dumped as raw modal values -- what the user
+        actually typed -- rather than the expanded cookiecutter variables, so
+        that the block can be pasted straight back into a second attempt.
+        """
+        noun = "file" if metadata.type == "file" else "project"
+        text = (
+            f"I couldn't find information for author ID `{error.author_id}`."
+        )
+        guidance = (
+            f"{text}\n\n"
+            f"Check <{AUTHOR_LIST_URL}|the author list> for the correct "
+            f"author ID, or <{AUTHORDB_EDIT_URL}|open a pull request for "
+            "`etc/authordb.yaml` in lsst/lsst-texmf> to add a new author."
+            f"\n\nNo {noun} was created. Here are the values you submitted, "
+            "so you can paste them back in when you try again:"
+        )
+        values = "```\n" + json.dumps(modal_values, indent=2) + "\n```"
+        blocks: list[SlackBlock] = [
+            SlackSectionBlock(text=SlackMrkdwnTextObject(text=guidance)),
+            SlackSectionBlock(text=SlackMrkdwnTextObject(text=values)),
+        ]
+        return text, blocks
 
     async def _report_abandoned_creation(
         self,
@@ -180,7 +330,10 @@ class SlackViewService:
                     error=error, metadata=metadata, user_id=user_id
                 )
             )
-        await self._report_failure_to_user(error=error, metadata=metadata)
+        text, blocks = self._format_failure_message(
+            error=error, metadata=metadata
+        )
+        await self._report_to_user(text=text, blocks=blocks, metadata=metadata)
 
     def _format_operator_alert(
         self,
@@ -198,20 +351,12 @@ class SlackViewService:
         channel.
         """
         noun = "file" if metadata.type == "file" else "project"
-        channel = metadata.trigger_channel_id or "unknown"
         return SlackMessage(
             message=(
                 f"Abandoned {noun} creation from the "
                 f"`{metadata.template_name}` template."
             ),
-            fields=[
-                SlackTextField(
-                    heading="Template", text=metadata.template_name
-                ),
-                SlackTextField(heading="Type", text=metadata.type),
-                SlackTextField(heading="Channel", text=channel),
-                SlackTextField(heading="User", text=user_id),
-            ],
+            fields=self._alert_fields(metadata=metadata, user_id=user_id),
             blocks=[
                 SlackCodeBlock(
                     heading="Exception",
@@ -220,13 +365,40 @@ class SlackViewService:
             ],
         )
 
-    async def _report_failure_to_user(
+    def _alert_fields(
         self,
         *,
-        error: Exception,
+        metadata: TemplateVariablesModalMetadata,
+        user_id: str,
+    ) -> list[SlackBaseField]:
+        """Name the request an operator alert is about.
+
+        Every operator alert from this seam identifies the submission the
+        same way, whatever went wrong with it, so the status channel stays
+        skimmable.
+        """
+        return [
+            SlackTextField(heading="Template", text=metadata.template_name),
+            SlackTextField(heading="Type", text=metadata.type),
+            SlackTextField(
+                heading="Channel",
+                text=metadata.trigger_channel_id or "unknown",
+            ),
+            SlackTextField(heading="User", text=user_id),
+        ]
+
+    async def _report_to_user(
+        self,
+        *,
+        text: str,
+        blocks: list[SlackBlock],
         metadata: TemplateVariablesModalMetadata,
     ) -> None:
-        """Tell the user their request was abandoned, without ever raising.
+        """Deliver a failure report to the user, without ever raising.
+
+        Every failure path through this seam writes the trigger message
+        through here, exactly once, so the user is never shown two competing
+        accounts of what happened.
 
         The trigger message is updated in place when there is one. If that
         ``chat.update`` fails even after the client's retries — the exact
@@ -240,9 +412,6 @@ class SlackViewService:
             # Nowhere to report: the modal was opened without a trigger
             # message, so the marker log is all the operator gets.
             return
-        text, blocks = self._format_failure_message(
-            error=error, metadata=metadata
-        )
 
         if metadata.trigger_message_ts is not None:
             try:
