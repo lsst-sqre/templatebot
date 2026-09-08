@@ -15,6 +15,7 @@ from structlog.testing import capture_logs
 from templatekit.repo import FileTemplate, ProjectTemplate
 
 from templatebot.services.template import TemplateService
+from templatebot.storage.authordb import AuthorNotFoundError
 from templatebot.storage.githubappclientfactory import GitHubAppClientFactory
 from templatebot.storage.ltdclient import LtdClient
 from templatebot.storage.slack import SlackWebApiClient
@@ -334,35 +335,38 @@ async def test_lost_final_summary_logs_the_repository_url(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_no_retry_sleep", "renderer", "git_clone")
-async def test_failed_author_error_report_preserves_original_error(
+async def test_unknown_author_propagates_without_a_slack_message(
     respx_mock: respx.MockRouter,
     github_client: FakeGitHubClient,
 ) -> None:
-    """When the author lookup fails and the Slack report of that failure also
-    fails, the caller still sees the author lookup's own error.
+    """An unknown author ID leaves this service silent.
+
+    The view-service seam owns the user-facing failure message, so a second
+    writer here would only race it for the same trigger message. All this
+    service does is let the typed exception through untouched, after the
+    opening status update it had already posted.
     """
     respx_mock.get("https://roundtable.lsst.cloud/ook/authors/nobody").mock(
         return_value=httpx.Response(404)
     )
-    respx_mock.post(CHAT_UPDATE_URL).mock(
-        side_effect=[
-            # The opening status update.
-            httpx.Response(200, json=OK),
-            # The author-ID error report, failing on every retry.
-            httpx.ReadTimeout("timed out"),
-            httpx.ReadTimeout("timed out"),
-            httpx.ReadTimeout("timed out"),
-        ]
+    route = respx_mock.post(CHAT_UPDATE_URL).mock(
+        return_value=httpx.Response(200, json=OK)
     )
 
     modal_values = dict(MODAL_VALUES) | {"author_id": "nobody"}
-    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+    with pytest.raises(AuthorNotFoundError) as exc_info:
         await create_project(
             github_client=github_client, modal_values=modal_values
         )
 
-    assert exc_info.value.response.status_code == 404
+    assert exc_info.value.author_id == "nobody"
     assert github_client.created == []
+    # Only the opening "I'm creating your new project..." update was posted.
+    assert route.call_count == 1
+    assert (
+        "I'm creating your new project"
+        in route.calls[0].request.content.decode()
+    )
 
 
 @pytest.mark.asyncio
