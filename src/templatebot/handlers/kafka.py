@@ -16,6 +16,7 @@ from structlog import get_logger
 from ..config import config
 from ..dependencies.consumercontext import (
     ConsumerContext,
+    MessageContextMiddleware,
     consumer_context_dependency,
 )
 
@@ -31,12 +32,15 @@ __all__ = ["handle_slack_message", "kafka_broker"]
 # env vars Phalanx may set (safir's settings model uses extra="forbid"), so
 # it is deliberately left as-is here.
 kafka_security = BaseSecurity(ssl_context=config.kafka.ssl_context)
-# The broker is wrapped by FastStreamAPI in main.py, which starts it before
-# entering the application lifespan and stops it after exit.
+# The broker is wrapped by FastStreamAPI in main.py, which starts it inside
+# the application lifespan (after the lifespan's startup code, before its
+# shutdown code). MessageContextMiddleware is what lets
+# consumer_context_dependency see the message each subscriber is handling.
 kafka_broker = KafkaBroker(
     config.kafka.bootstrap_servers,
     security=kafka_security,
     logger=get_logger(__name__),
+    middlewares=[MessageContextMiddleware],
 )
 
 

@@ -1,0 +1,3 @@
+### Other changes
+
+- Update to faststream 0.7.5 and faststream-fastapi 1.3.1. Kafka consumers now learn which message they are handling from a broker middleware, `MessageContextMiddleware`, instead of from `faststream_fastapi.Context("message")`. faststream 0.7.5 scopes per-message context inside a `ContextRepoComposition` that faststream-fastapi's application-level `ContextRepo` cannot see, so that `Context()` resolved to nothing and every consumer failed with `AttributeError: 'EmptyPlaceholder' object has no attribute 'raw_message'`. faststream-fastapi 1.3.1 also now starts the broker inside the application lifespan rather than around it, so nothing in Templatebot's startup may rely on a connected broker (nothing did).
