@@ -81,5 +81,18 @@ fastapi_app.add_middleware(XForwardedMiddleware)
 # Wrap the FastAPI app with the FastStream Kafka broker. This must come
 # after all subscriber modules are imported (the `handlers.kafka` import
 # above guarantees that).
-app = FastStreamAPI(kafka_broker, application=fastapi_app)
+#
+# The ``arg-type`` ignore covers a typing-only mismatch between
+# faststream and faststream-fastapi; nothing is wrong at runtime.
+# faststream 0.7.6 gave ``KafkaBroker`` a third type argument
+# (``BrokerUsecase[..., ..., KafkaBrokerConfig]``), but faststream-fastapi
+# 1.3.1 annotates this parameter as ``BrokerUsecase[Any, Any]``, whose
+# omitted third parameter defaults to ``BrokerConfig`` and is invariant,
+# so mypy rejects the broker. ``unused-ignore`` keeps
+# ``warn_unused_ignores`` quiet under version pairs where the mismatch
+# does not occur (faststream <= 0.7.5, or a faststream-fastapi release
+# that widens its annotation to accept any broker config). Remove the
+# ignore and this paragraph once such a faststream-fastapi release is
+# the minimum version here.
+app = FastStreamAPI(kafka_broker, application=fastapi_app)  # type: ignore[arg-type,unused-ignore]
 """The ASGI application for templatebot, serving both HTTP and Kafka."""
