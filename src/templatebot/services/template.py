@@ -35,8 +35,8 @@ __all__ = ["TemplateService"]
 LATEX_TEMPLATES = (
     "latex_lsstdoc",
     "technote_aastex",
+    "technote_adasstex",
     "technote_ascomtex",
-    "technote_latex",
     "technote_latex",
     "technote_spietex",
     "technote_epjconf",
