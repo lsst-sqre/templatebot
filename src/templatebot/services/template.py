@@ -39,6 +39,7 @@ LATEX_TEMPLATES = (
     "technote_latex",
     "technote_latex",
     "technote_spietex",
+    "technote_epjconf",
     "test_report",
 )
 
