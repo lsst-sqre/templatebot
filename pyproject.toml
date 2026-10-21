@@ -57,7 +57,7 @@ dev = [
     "pytest-asyncio",
     "pytest-cov",
     "respx",
-    "uv>=0.12.18",
+    "uv>=0.13.4",
 ]
 lint = [
     "prek",
