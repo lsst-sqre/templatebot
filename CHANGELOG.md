@@ -2,6 +2,13 @@
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.7.2'></a>
+## 0.7.2 (2026-11-19)
+
+### Other changes
+
+- Update pinned dependencies, including FastAPI 0.165, faststream 0.7.8, faststream-fastapi 1.4.0, gidgethub 6.0, Safir 15.2.3, Pydantic 2.14, and uv 0.13.9. Ruff is updated to 0.17 in both the lint dependency group and the pre-commit configuration.
+
 <a id='changelog-0.7.1'></a>
 ## 0.7.1 (2026-10-21)
 
